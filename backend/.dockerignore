@@ -1,0 +1,9 @@
+.pytest-data/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+.venv/
+.env
+data/
+samples/generated/
