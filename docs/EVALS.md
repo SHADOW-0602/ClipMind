@@ -8,7 +8,7 @@ The latest run was on **2026-10-23** against the local mock-mode stack. It passe
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **12 passed** in 115.76s |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **12 passed** in 75.39s |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | **clean** |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | **clean** |
 | Frontend types | `cd frontend && npm run typecheck` | **clean** |

@@ -187,4 +187,4 @@ data/
 - `backend/tests/test_transcripts.py` covers word timings, SRT, quote grounding, snapping, and overlap removal.
 - `backend/tests/test_mock_provider.py` verifies deterministic copy and summary behavior.
 - `frontend/e2e/smoke.spec.ts` covers the dashboard, brand creation, demo pipeline, clip edit/save, and re-render in Chromium.
-- `scripts/eval.py` runs 80 acceptance checks against a live API.
+- `scripts/eval.py` runs 81 acceptance checks on a fresh project against a live API (80 when re-evaluating a stored project).
