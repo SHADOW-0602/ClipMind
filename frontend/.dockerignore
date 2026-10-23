@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+test-results/
+playwright-report/
+.env.local
+npm-debug.log*
+e2e/
+playwright.config.ts
+tsconfig.tsbuildinfo
