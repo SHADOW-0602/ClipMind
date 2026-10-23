@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import shutil
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from ..config import ROOT_DIR
 from ..db import get_session
 from ..models import BrandProfile, Project
 from ..pipeline.ingest import register_asset
@@ -17,6 +17,8 @@ from .serializers import project_read
 
 router = APIRouter(prefix="/api", tags=["demo"])
 
+# Locally this is <repo>/backend; in the container it is /app. Both hold samples/.
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 DEMO_NAME = "The Creator Operating System"
 
 
@@ -34,7 +36,7 @@ def create_demo_project(
     This keeps the hackathon review path to one click: the short sample has a
     known transcript manifest, so mock mode can show real word-level captions.
     """
-    sample = ROOT_DIR / "backend" / "samples" / "demo-short.mp4"
+    sample = BACKEND_DIR / "samples" / "demo-short.mp4"
     if not sample.exists():
         raise HTTPException(
             status_code=404,
