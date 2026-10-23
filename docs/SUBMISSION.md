@@ -27,10 +27,10 @@ Creators do not lack content; they lack a trustworthy way to find the publishabl
 | Brand profiles and banned words | Done | `api/brand.py`, `api/clips.py` |
 | Cost tracking and budget guard | Done | `services/costs.py`, `providers/meta.py` |
 | Demo data and one-click demo | Done | `backend/samples/`, `POST /api/demo-project` |
-| Backend tests | Done, 12 passed | `backend/tests/` |
+| Backend tests | Done, 13 passed | `backend/tests/` |
 | Browser smoke test | Done, 3 passed | `frontend/e2e/smoke.spec.ts` |
 | Acceptance eval | Done, 81/81 | `scripts/eval.py`, [EVALS.md](EVALS.md) |
-| Docker Compose | Included, not built here | `docker-compose.yml` |
+| Docker Compose | Done, stack verified end to end | `docker-compose.yml` |
 | Makefile | Included | `Makefile` |
 | README | Done | `README.md` |
 | Architecture / API / decisions / credits | Done | `docs/` |
@@ -74,17 +74,18 @@ cd frontend && npm run test:e2e
 
 ## Evidence
 
-Latest local run on **2026-10-23**:
+Latest verified run on **2026-10-23** (Docker Compose mock stack):
 
 | Evidence | Result |
 | --- | --- |
-| Backend tests | 12 passed |
+| Backend tests | 13 passed |
 | Ruff / compileall | clean |
 | Frontend typecheck / lint | clean |
 | Production build | success, 8 app routes |
-| Playwright smoke | 3 passed |
-| Acceptance eval | 81/81 passed, 0 failed |
-| Demo project | `683b1a3d8e574568bf14840da1544af7` |
+| Docker Compose | backend healthy, frontend HTTP 200 |
+| Playwright smoke | 3 passed through the containerized UI |
+| Acceptance eval | 81/81 passed, 0 failed against the containerized API |
+| Demo project | `e040c1177fc648f4b4c8a507610ce3bf` |
 | Demo source | 100.374s, word-level ground truth, 213 word timings |
 | Renders | 3 clips at 1080x1920 |
 | Model spend | $0.0000 in mock mode |
@@ -131,25 +132,25 @@ The acceptance eval writes `data/evals/latest.json`; runtime data is gitignored.
 - **Demo scale is honest.** SQLite, an in-process queue, and a single node. The README and decisions doc say so.
 - **Production path is clear.** Postgres, a durable queue, object storage, auth, per-user quotas, and a render worker pool. The pipeline stages are already checkpointed and separable.
 - **Cost controls are real.** A paid run cannot silently exceed `MAX_BUDGET_USD`; the call is refused with a readable error.
-- **No overclaiming.** Live Meta behavior and Docker were not verified in this environment; both are called out below.
+- **No overclaiming.** Docker Compose was verified end to end here. Live Meta behavior was not, and that limitation is called out below.
 
 ## What is not verified
 
 Be explicit in the submission. These are not hidden:
 
 1. **Live Meta API.** No real key was available. The Meta provider is implemented from current docs, but the request/response envelope, ASR word timings, Files API behavior for large video, rate-limit headers, and current prices have not been exercised against `api.meta.ai`. See the `TODO(verify)` list in [DECISIONS.md](DECISIONS.md).
-2. **Docker.** The Dockerfiles and Compose file are included, but this Windows environment did not run `docker compose up --build`. Treat the container path as untested until it is run on the target machine.
+2. **Docker scope.** The Compose stack was built and exercised here: backend healthy, frontend served, eval 81/81 against the containerized API, and Playwright 3/3 through the containerized UI. This covers one Windows host with Linux containers, not Kubernetes, multi-host orchestration, image scanning, or production resource limits.
 3. **Arbitrary media in mock mode.** The bundled demo is fully grounded. An arbitrary upload in mock mode uses a canned transcript unless its SHA256 matches a sample manifest or `FORCE_WHISPER=true` with faster-whisper installed.
 4. **Engagement accuracy.** Scores are structural estimates, not measured platform performance.
 5. **Scale and security.** No load testing, no authentication, no multi-tenancy, no fuzzing.
 
 ## Pre-submit actions
 
-- [ ] Run the full acceptance suite one more time on the submission machine.
+- [x] Run the full acceptance suite one more time on the submission machine.
 - [ ] Confirm `.env` is not committed and contains no secrets.
-- [ ] Confirm `data/`, `node_modules/`, `.venv/`, `.next/`, and test artifacts are ignored.
+- [x] Confirm `data/`, `node_modules/`, `.venv/`, `.next/`, and test artifacts are ignored.
 - [ ] Confirm the README quickstart works from a clean clone.
-- [ ] If Docker is available, run `docker compose up --build` and click through the demo.
+- [x] Run `docker compose up --build`, the acceptance eval, and the Playwright suite against the stack.
 - [ ] If a Meta key is available, run one live project and update the verification note; otherwise keep the honest limitation.
 - [ ] Capture a fresh screenshot if the UI changed.
 - [ ] Tag the release (for example, `v0.1.0-hackathon`).

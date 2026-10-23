@@ -2,22 +2,23 @@
 
 ClipMind is checked at three levels: deterministic backend tests, a browser smoke test of the real UI, and an end-to-end acceptance eval that inspects the artifacts produced by the pipeline.
 
-The latest run was on **2026-10-23** against the local mock-mode stack. It passed **81/81** acceptance checks, **12/12** backend tests, and **3/3** Playwright tests. No live Meta API calls were made.
+The latest run was on **2026-10-23** against the Docker Compose mock-mode stack. It passed **81/81** acceptance checks, **13/13** backend tests, and **3/3** Playwright tests. No live Meta API calls were made.
 
 ## Latest results
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **12 passed** in 75.39s |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **13 passed** in 58.40s |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | **clean** |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | **clean** |
 | Frontend types | `cd frontend && npm run typecheck` | **clean** |
 | Frontend lint | `cd frontend && npm run lint` | **clean** |
 | Frontend build | `cd frontend && npm run build` | **success**, 8 app routes |
-| Browser smoke | `cd frontend && npm run test:e2e` | **3 passed** in 2.2m |
+| Browser smoke | `cd frontend && npm run test:e2e` | **3 passed** in 2.1m |
 | Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py --platforms tiktok,linkedin,youtube --min-clip-s 12 --max-clip-s 35` | **81/81 passed**, 0 failed |
+| Docker Compose | `docker compose up -d --build` | backend **healthy**, frontend **HTTP 200** |
 
-The acceptance run used project `683b1a3d8e574568bf14840da1544af7` (`The Creator Operating System`), a 100.374s demo recording, provider `mock`, brand `Systems Studio`, three rendered clips, and **$0.0000** metered spend. The JSON report was written to `data/evals/latest.json` (runtime data is gitignored).
+The acceptance run used project `e040c1177fc648f4b4c8a507610ce3bf` (`The Creator Operating System`), a 100.374s demo recording, provider `mock`, brand `Systems Studio`, three rendered clips, and **$0.0000** metered spend. It ran against the Docker Compose backend; the browser smoke test ran against the Compose frontend and reused that same stack. The JSON report was written to `data/evals/latest.json` (runtime data is gitignored).
 
 ## What the acceptance eval checks
 
@@ -100,7 +101,7 @@ These results are real for the environment above, but they are not a blanket pro
 - **Modeled engagement.** Insight scores are structural estimates from transcript features, not measured platform performance. The eval checks their presence and bounds, not their predictive accuracy.
 - **Single-node operation.** The in-process queue, SQLite storage, and lack of authentication are demo constraints. No load, concurrency, or security testing was performed.
 - **One browser.** Playwright runs Chromium only. Safari/Firefox behavior and mobile layouts are not covered.
-- **Docker not exercised here.** The Dockerfiles and Compose file are included, but this environment did not run a container build. Treat Docker as unverified until `docker compose up --build` is run on the target machine.
+- **Container scope.** Docker Compose was verified on one Windows host with Linux containers: the backend became healthy, the frontend served HTTP 200, the eval passed 81/81 against the containerized API, and Playwright passed 3/3 through the containerized UI. This does not cover Kubernetes, multi-host orchestration, image scanning, or production resource limits.
 - **No real uploads beyond the sample.** The eval does not fuzz corrupt media, very large files, or unusual codecs. Backend validation rejects unsupported inputs, but the rejection matrix is not exhaustive.
 - **No publishing integration.** Export produces a review-ready pack; it does not post to social platforms.
 

@@ -1,8 +1,8 @@
 # Progress Log
 
-ClipMind was built from an empty repository in nine phases. Each phase ended with a runnable slice, a check, and a commit. The final verification was on **2026-10-23** against the local mock-mode stack.
+ClipMind was built from an empty repository in nine phases. Each phase ended with a runnable slice, a check, and a commit. The final verification was on **2026-10-23** against both the local and Docker Compose mock-mode stacks.
 
-**Status:** complete and demo-ready in mock mode. Live Meta API behavior and the Docker build remain unverified; those limitations are explicit in [EVALS.md](EVALS.md) and [SUBMISSION.md](SUBMISSION.md).
+**Status:** complete and demo-ready in mock mode. Docker Compose is verified end to end; live Meta API behavior remains unverified and is explicit in [EVALS.md](EVALS.md) and [SUBMISSION.md](SUBMISSION.md).
 
 ## Phase summary
 
@@ -16,7 +16,7 @@ ClipMind was built from an empty repository in nine phases. Each phase ended wit
 | 5. Copy, summary, insights | Platform variants, brand rules, summaries, chapters, scorecards | `30dfedf` |
 | 6. Render and export | ASS captions, 1080x1920 renders, blurred canvas, ZIP export | `30dfedf` |
 | 7. Frontend | All pages, SSE progress, clip editor, brands, usage, settings | `a7433d3` |
-| 8. Hardening and submission | Tests, Playwright, eval, Docker, docs, demo, screenshots | `38c8b5e`, `0679356`, `d9f179b`, `0205312` |
+| 8. Hardening and submission | Tests, Playwright, eval, Docker, docs, demo, screenshots | `38c8b5e`, `0679356`, `d9f179b`, `0205312`, `e78d26a` |
 
 The backend phases landed in one cohesive commit because they share the same models, pipeline contracts, and test fixture. The frontend, ops tooling, and documentation are separate commits.
 
@@ -145,7 +145,7 @@ The backend phases landed in one cohesive commit because they share the same mod
 
 **Goal:** make the repository reviewable without a guided tour.
 
-- Backend tests expanded to 12, including stage status assertions, demo creation, system config, sample media, transcript utilities, and mock provider behavior.
+- Backend tests expanded to 13, including stage status assertions, demo creation, system config, CORS env parsing, sample media, transcript utilities, and mock provider behavior.
 - Playwright smoke test added with a reusable webServer config and CI-friendly backend command override.
 - Acceptance eval added: 81 checks across project, transcript, clips, summary, insights, export, and usage.
 - API-driven demo, seed, and eval scripts so they work against local, Docker, or deployed instances.
@@ -154,20 +154,21 @@ The backend phases landed in one cohesive commit because they share the same mod
 - Dashboard and clip-studio screenshots captured from a completed demo.
 - Runtime data cleaned down to completed demos; brands seeded for screenshots.
 
-**Verification:** 12 backend tests passed, 3 Playwright tests passed, frontend build succeeded, and the fresh acceptance eval passed **81/81** checks at **$0.0000**.
+**Verification:** 13 backend tests passed, 3 Playwright tests passed through the containerized UI, frontend build succeeded, Docker Compose started with a healthy backend, and the fresh acceptance eval passed **81/81** checks at **$0.0000** against the containerized API.
 
 ## Verification matrix
 
 | Area | Command | Latest result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 12 passed |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 13 passed |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | clean |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | clean |
 | Frontend types | `cd frontend && npm run typecheck` | clean |
 | Frontend lint | `cd frontend && npm run lint` | clean |
 | Frontend build | `cd frontend && npm run build` | success, 8 routes |
-| Browser smoke | `cd frontend && npm run test:e2e` | 3 passed |
-| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py` | 81/81 passed |
+| Docker Compose | `docker compose up -d --build` | backend healthy, frontend HTTP 200 |
+| Browser smoke | `cd frontend && npm run test:e2e` | 3 passed (2.1m, against Compose) |
+| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py` | 81/81 passed (against Compose) |
 | Demo CLI | `.\.venv\Scripts\python.exe scripts\demo.py` | 3 clips, 3 rendered, $0 |
 
 ## Deviations from the original plan
@@ -185,7 +186,7 @@ The backend phases landed in one cohesive commit because they share the same mod
 ## Known gaps and next steps
 
 1. **Live Meta verification.** Add a key, run one project, confirm the Responses envelope, ASR timings, Files API behavior for large video, rate-limit headers, and current prices. Update the `TODO(verify)` list.
-2. **Docker validation.** Run `docker compose up --build` on a machine with Docker and click through the demo.
+2. **Production containers.** Compose is verified on one host; add Kubernetes or multi-host orchestration, image scanning, health-based rollouts, and resource limits before production.
 3. **Durable infrastructure.** Postgres, a durable queue, object storage, render workers, auth, per-user quotas, and audit logs.
 4. **ASR quality.** Benchmark Muse Voice Transcribe and faster-whisper on real podcasts, accents, and overlapping speech.
 5. **Engagement validation.** Correlate structural scores with actual platform retention before making stronger claims.
@@ -202,5 +203,6 @@ The backend phases landed in one cohesive commit because they share the same mod
 | `0679356` | README, architecture, API, decisions, credits, evals, demo, submission, screenshots |
 | `d9f179b` | Progress log and final verification record |
 | `0205312` | Eval count and timing corrections |
+| `e78d26a` | CORS env parsing, container demo path, 13th backend test |
 
 Use `git log --oneline` for the authoritative history.

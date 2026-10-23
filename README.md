@@ -90,7 +90,7 @@ docker compose up --build
 - API: http://localhost:8000
 - API docs: http://localhost:8000/docs
 
-The backend container includes FFmpeg and stores data in the `clipmind-data` volume. To reset everything:
+The backend container includes FFmpeg and the bundled demo samples, and stores runtime data in the `clipmind-data` volume. This path was verified on 2026-10-23: both containers started, the backend reported healthy, the UI served at port 3000, the acceptance eval passed **81/81** against the containerized API, and the Playwright suite passed **3/3** through the containerized UI. To reset everything:
 
 ```bash
 docker compose down -v
