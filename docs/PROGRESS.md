@@ -16,7 +16,7 @@ ClipMind was built from an empty repository in nine phases. Each phase ended wit
 | 5. Copy, summary, insights | Platform variants, brand rules, summaries, chapters, scorecards | `30dfedf` |
 | 6. Render and export | ASS captions, 1080x1920 renders, blurred canvas, ZIP export | `30dfedf` |
 | 7. Frontend | All pages, SSE progress, clip editor, brands, usage, settings | `a7433d3` |
-| 8. Hardening and submission | Tests, Playwright, eval, Docker, docs, demo, screenshots | `38c8b5e`, `0679356` |
+| 8. Hardening and submission | Tests, Playwright, eval, Docker, docs, demo, screenshots | `38c8b5e`, `0679356`, `d9f179b`, `0205312` |
 
 The backend phases landed in one cohesive commit because they share the same models, pipeline contracts, and test fixture. The frontend, ops tooling, and documentation are separate commits.
 
@@ -200,6 +200,7 @@ The backend phases landed in one cohesive commit because they share the same mod
 | `a7433d3` | Next.js studio UI, components, API client, Playwright smoke test |
 | `38c8b5e` | Demo/eval/seed scripts, Makefile, Docker, environment examples |
 | `0679356` | README, architecture, API, decisions, credits, evals, demo, submission, screenshots |
-| this commit | Progress log and final verification record |
+| `d9f179b` | Progress log and final verification record |
+| `0205312` | Eval count and timing corrections |
 
 Use `git log --oneline` for the authoritative history.
