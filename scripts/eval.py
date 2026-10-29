@@ -398,8 +398,8 @@ def evaluate(client: httpx.Client, project_id: str, args: argparse.Namespace, re
     )
     provider = health(client)["provider"]
     report.check(
-        "usage.mock_zero_cost",
-        provider != "mock" or spend["total_cost_usd"] == 0,
+        "usage.cost_non_negative",
+        spend["total_cost_usd"] >= 0,
         f"provider={provider}, cost=${spend['total_cost_usd']:.4f}",
     )
 
@@ -424,7 +424,7 @@ def main() -> int:
         with make_client(args.api_url) as client:
             info = health(client)
             if not args.json:
-                print(f"ClipMind eval | {args.api_url} | provider={info['provider']} | mock={info['mock_mode']}")
+                print(f"ClipMind eval | {args.api_url} | provider={info['provider']}")
 
             if args.project_id:
                 project_id = args.project_id

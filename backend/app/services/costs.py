@@ -17,8 +17,6 @@ current_job_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "clipmind_current_job", default=None
 )
 
-ASR_USD_PER_HOUR = 0.18
-
 
 class BudgetExceeded(RuntimeError):
     pass
@@ -34,14 +32,12 @@ class TokenCost:
 
 def token_cost(input_tokens: int, cached_tokens: int, output_tokens: int, *, model: str = "") -> TokenCost:
     settings = get_settings()
-    if model == "mock" or settings.effective_provider == "mock":
-        return TokenCost(input_tokens, cached_tokens, output_tokens, 0.0)
     cached_tokens = max(0, min(cached_tokens, input_tokens))
     uncached = max(0, input_tokens - cached_tokens)
     cost = (
-        uncached * settings.meta_input_price_per_m
-        + cached_tokens * settings.meta_cached_input_price_per_m
-        + output_tokens * settings.meta_output_price_per_m
+        uncached * settings.active_input_price_per_m
+        + cached_tokens * settings.active_cached_input_price_per_m
+        + output_tokens * settings.active_output_price_per_m
     ) / 1_000_000
     return TokenCost(input_tokens, cached_tokens, output_tokens, round(cost, 8))
 
@@ -59,7 +55,8 @@ def ensure_budget(estimated_next_usd: float = 0.0) -> None:
     if total + estimated_next_usd > settings.max_budget_usd:
         raise BudgetExceeded(
             f"Budget guard tripped: ${total:.2f} spent, ${estimated_next_usd:.2f} estimated, "
-            f"limit ${settings.max_budget_usd:.2f}. Raise MAX_BUDGET_USD or switch to MOCK_MODE."
+            f"limit ${settings.max_budget_usd:.2f}. Raise MAX_BUDGET_USD or switch to a free "
+            "provider preset such as groq, gemini, openrouter, or ollama."
         )
 
 
@@ -106,9 +103,16 @@ def log_model_call(
 
 
 def log_asr_call(
-    *, model: str, audio_seconds: float, latency_ms: int, job_id: str | None = None
+    *,
+    model: str,
+    audio_seconds: float,
+    latency_ms: int,
+    usd_per_hour: float | None = None,
+    job_id: str | None = None,
 ) -> float:
-    cost = round(audio_seconds / 3600 * ASR_USD_PER_HOUR, 8)
+    settings = get_settings()
+    rate = settings.active_asr_usd_per_hour if usd_per_hour is None else usd_per_hour
+    cost = round(audio_seconds / 3600 * rate, 8)
     job = job_id or current_job_id.get()
     with Session(get_engine()) as session:
         session.add(

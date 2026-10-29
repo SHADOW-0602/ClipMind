@@ -1,6 +1,6 @@
 # Submission
 
-ClipMind is a complete, runnable multimodal content-intelligence studio built for the Meta Model API hackathon. This page is the submission checklist, the evidence map, and the honest list of what is and is not verified.
+ClipMind is a complete, runnable multimodal content-intelligence studio built for the Meta Model API hackathon. It runs on a live model provider and supports multiple switchable APIs; the default Groq preset is free. This page is the submission checklist, the evidence map, and the honest list of what is and is not verified.
 
 ## One-line description
 
@@ -8,14 +8,15 @@ ClipMind turns one long recording into transcript-grounded clips, platform-nativ
 
 ## Short description
 
-Creators do not lack content; they lack a trustworthy way to find the publishable moment inside a long recording. ClipMind ingests video, audio, or text, builds a word-level transcript, proposes and critiques candidate moments, validates every quote and boundary against the source, writes platform-specific copy, renders 1080x1920 captioned clips, summarizes the source, and scores the result. Brand profiles enforce voice and banned words, and every model call is metered against a hard budget. The whole product runs offline in mock mode at $0; switching to the Meta Model API is an environment change.
+Creators do not lack content; they lack a trustworthy way to find the publishable moment inside a long recording. ClipMind ingests video, audio, or text, builds a word-level transcript, proposes and critiques candidate moments, validates every quote and boundary against the source, writes platform-specific copy, renders 1080x1920 captioned clips, summarizes the source, and scores the result. Brand profiles enforce voice and banned words, and every model call is metered against a hard budget. ClipMind always runs against a live provider; `PROVIDER` switches between Groq, Gemini, OpenRouter, Ollama, LM Studio, Mistral, Cerebras, DeepSeek, Together, OpenAI, xAI, Fireworks, Perplexity, Meta, or a custom OpenAI-compatible endpoint.
 
 ## Submission checklist
 
 | Deliverable | Status | Where |
 | --- | --- | --- |
 | Working full-stack app | Done | `backend/`, `frontend/` |
-| Mock mode, end to end, $0 | Done | `.env.example`, `backend/app/providers/mock.py` |
+| Multi-provider live layer | Done | `backend/app/providers/openai_compatible.py`, `config.py` |
+| Free default provider | Done | `PROVIDER=groq` in `.env.example` |
 | Real Meta provider | Implemented, not live-tested | `backend/app/providers/meta.py` |
 | Video, audio, and text ingest | Done | `backend/app/api/uploads.py`, `pipeline/ingest.py` |
 | Word-level transcript | Done | `pipeline/transcribe.py`, `services/asr.py` |
@@ -25,12 +26,12 @@ Creators do not lack content; they lack a trustworthy way to find the publishabl
 | Summary and insights | Done | `pipeline/summarize.py`, `pipeline/insights.py` |
 | Export pack | Done | `api/export.py` |
 | Brand profiles and banned words | Done | `api/brand.py`, `api/clips.py` |
-| Cost tracking and budget guard | Done | `services/costs.py`, `providers/meta.py` |
+| Cost tracking and budget guard | Done | `services/costs.py`, `providers/openai_compatible.py` |
 | Demo data and one-click demo | Done | `backend/samples/`, `POST /api/demo-project` |
-| Backend tests | Done, 13 passed | `backend/tests/` |
-| Browser smoke test | Done, 3 passed | `frontend/e2e/smoke.spec.ts` |
-| Acceptance eval | Done, 81/81 | `scripts/eval.py`, [EVALS.md](EVALS.md) |
-| Docker Compose | Done, stack verified end to end | `docker-compose.yml` |
+| Backend tests | Done, 20 passed | `backend/tests/` |
+| Browser smoke test | Implemented, not re-run after provider refactor | `frontend/e2e/smoke.spec.ts` |
+| Acceptance eval | Implemented; 81/81 against a local HTTP stub, live vendor pending | `scripts/eval.py`, [EVALS.md](EVALS.md) |
+| Docker Compose | Configured, not re-verified after provider refactor | `docker-compose.yml` |
 | Makefile | Included | `Makefile` |
 | README | Done | `README.md` |
 | Architecture / API / decisions / credits | Done | `docs/` |
@@ -42,6 +43,8 @@ Creators do not lack content; they lack a trustworthy way to find the publishabl
 
 ```bash
 cp .env.example .env
+# Add your key from https://console.groq.com/keys
+# MODEL_API_KEY=gsk_...
 python -m venv .venv
 
 # Windows
@@ -57,7 +60,7 @@ python scripts/dev.py
 
 Open **http://localhost:3000** and click **Run the demo**.
 
-Prerequisites: Python 3.11+, Node.js 20+, FFmpeg 6+ on `PATH`. No API key is required. The default `.env.example` is mock mode.
+Prerequisites: Python 3.11+, Node.js 20+, FFmpeg 6+ on `PATH`, and a free Groq API key for the default preset. Switch to `PROVIDER=ollama` or `lmstudio` for a keyless local endpoint.
 
 To verify without the UI:
 
@@ -74,22 +77,18 @@ cd frontend && npm run test:e2e
 
 ## Evidence
 
-Latest verified run on **2026-10-23** (Docker Compose mock stack):
+Latest local verification on **2026-10-29** after the provider refactor:
 
 | Evidence | Result |
 | --- | --- |
-| Backend tests | 13 passed |
+| Backend tests | 20 passed |
 | Ruff / compileall | clean |
 | Frontend typecheck / lint | clean |
 | Production build | success, 8 app routes |
-| Docker Compose | backend healthy, frontend HTTP 200 |
-| Playwright smoke | 3 passed through the containerized UI |
-| Acceptance eval | 81/81 passed, 0 failed against the containerized API |
-| Demo project | `e040c1177fc648f4b4c8a507610ce3bf` |
-| Demo source | 100.374s, word-level ground truth, 213 word timings |
-| Renders | 3 clips at 1080x1920 |
-| Model spend | $0.0000 in mock mode |
-| Export | manifest, summary, CSV, insights, MP4s, SRTs, thumbnails |
+| Live provider run | HTTP adapter exercised against a local stub on the host and in Compose; no vendor key |
+| Docker Compose | rebuilt and verified: backend healthy, frontend HTTP 200 |
+| Browser smoke | 3 passed through the containerized UI (local stub) |
+| Acceptance eval | 81/81 against a local OpenAI-compatible stub (host and Compose); live vendor run pending |
 
 The acceptance eval writes `data/evals/latest.json`; runtime data is gitignored. The check categories and limitations are in [EVALS.md](EVALS.md).
 
@@ -99,8 +98,8 @@ The acceptance eval writes `data/evals/latest.json`; runtime data is gitignored.
 
 - **Grounded pipeline, not a prompt wrapper.** Deterministic candidate windows, model proposal, self-critique, quote grounding, word-boundary snapping, and boundary clamping. See [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Real media path.** FFmpeg probe/normalize, audio extraction, keyframes, ASR chunking, ASS captions, blurred landscape canvas, thumbnails, and SRT/ASS generation.
-- **Provider abstraction.** One interface for mock and Meta, selected by `get_provider()`. The same orchestration and accounting run in both modes.
-- **Structured output.** JSON schema requests, validation, one repair pass, and deterministic fallbacks.
+- **Provider abstraction.** One `LLMProvider` interface, an OpenAI-compatible adapter shared by most presets, and a native Meta Responses provider. The same orchestration and accounting run for every preset.
+- **Structured output.** JSON schema requests, validation, one repair pass, `json_object` fallback when an endpoint rejects schemas, and deterministic fallbacks.
 - **Durable-ish jobs.** Persisted stages/events/checkpoints, retry-once behavior, auto-resume on startup, SSE with polling fallback.
 - **Tests that inspect artifacts.** The eval reads SRT text, probes MP4 dimensions, opens the export ZIP, and checks the usage ledger.
 
@@ -115,43 +114,44 @@ The acceptance eval writes `data/evals/latest.json`; runtime data is gitignored.
 ### Design
 
 - Dark studio UI with a lime accent, editorial typography, and a consistent panel system.
-- Dashboard, upload flow, live pipeline rail, project workspace, clip studio, brand profiles, usage, and settings are all implemented, not mocked screens.
+- Dashboard, upload flow, live pipeline rail, project workspace, clip studio, brand profiles, usage, and settings are all implemented, not static mockups.
 - Responsive layouts, keyboard-accessible dialogs, visible focus states, and reduced-motion support.
 - Empty, loading, error, queued, running, failed, and completed states are designed.
 - Screenshots: [dashboard](images/dashboard.png), [clip studio](images/clip-studio.png).
 
 ### Use of the Meta Model API
 
-- Targets current documented model IDs: `muse-spark-1.3` for reasoning/copy/summary and `muse-voice-transcribe-1.0` for speech-to-text.
+- `PROVIDER=meta` targets current documented model IDs: `muse-spark-1.3` for reasoning/copy/summary and `muse-voice-transcribe-1.0` for speech-to-text.
 - Uses the Responses API with `text.format` JSON schema output, Bearer auth, retries on 408/409/429/5xx, and a repair pass.
 - Prices are configuration, not hard-coded: input, cached input, output, and ASR per hour.
-- The mock provider is a first-class implementation of the same interface, so reviewers can exercise the product without a key.
+- The default Groq preset and the other OpenAI-compatible presets keep the same interface, so reviewers can run the product on a free key or a local model.
 
 ### Feasibility and scale
 
 - **Demo scale is honest.** SQLite, an in-process queue, and a single node. The README and decisions doc say so.
 - **Production path is clear.** Postgres, a durable queue, object storage, auth, per-user quotas, and a render worker pool. The pipeline stages are already checkpointed and separable.
 - **Cost controls are real.** A paid run cannot silently exceed `MAX_BUDGET_USD`; the call is refused with a readable error.
-- **No overclaiming.** Docker Compose was verified end to end here. Live Meta behavior was not, and that limitation is called out below.
+- **No overclaiming.** The adapter was exercised over HTTP against a local stub, but the live vendor path was not smoke-tested with a real key here, and that limitation is called out below.
 
 ## What is not verified
 
 Be explicit in the submission. These are not hidden:
 
-1. **Live Meta API.** No real key was available. The Meta provider is implemented from current docs, but the request/response envelope, ASR word timings, Files API behavior for large video, rate-limit headers, and current prices have not been exercised against `api.meta.ai`. See the `TODO(verify)` list in [DECISIONS.md](DECISIONS.md).
-2. **Docker scope.** The Compose stack was built and exercised here: backend healthy, frontend served, eval 81/81 against the containerized API, and Playwright 3/3 through the containerized UI. This covers one Windows host with Linux containers, not Kubernetes, multi-host orchestration, image scanning, or production resource limits.
-3. **Arbitrary media in mock mode.** The bundled demo is fully grounded. An arbitrary upload in mock mode uses a canned transcript unless its SHA256 matches a sample manifest or `FORCE_WHISPER=true` with faster-whisper installed.
+1. **Live vendors.** No real vendor key was available while this repository was built. The OpenAI-compatible adapter passed an end-to-end HTTP smoke test against a local stub, but vendor request/response envelopes, ASR word timings, Files API behavior for large video, rate-limit headers, and current prices have not been exercised against a live service. See the `TODO(verify)` list in [DECISIONS.md](DECISIONS.md).
+2. **Docker scope.** Compose was rebuilt and verified after the provider refactor with the local stub: backend healthy, frontend HTTP 200, eval 81/81, and Playwright 3/3. It still needs one run with a real vendor key. This covers one Windows host with Linux containers, not Kubernetes, multi-host orchestration, image scanning, or production resource limits.
+3. **Arbitrary media transcription.** The bundled demo is fully grounded by its manifest. Arbitrary uploads require the configured remote ASR to succeed or local `faster-whisper` to be installed.
 4. **Engagement accuracy.** Scores are structural estimates, not measured platform performance.
 5. **Scale and security.** No load testing, no authentication, no multi-tenancy, no fuzzing.
 
 ## Pre-submit actions
 
-- [x] Run the full acceptance suite one more time on the submission machine.
+- [x] Run the full automated suite one more time on the submission machine.
 - [ ] Confirm `.env` is not committed and contains no secrets.
 - [x] Confirm `data/`, `node_modules/`, `.venv/`, `.next/`, and test artifacts are ignored.
-- [ ] Confirm the README quickstart works from a clean clone.
-- [x] Run `docker compose up --build`, the acceptance eval, and the Playwright suite against the stack.
-- [ ] If a Meta key is available, run one live project and update the verification note; otherwise keep the honest limitation.
+- [ ] Confirm the README quickstart works from a clean clone with a free Groq key.
+- [x] Rebuild Compose after the provider refactor and run the eval and Playwright against the containerized stack (local stub).
+- [ ] Run `docker compose up --build` with a real key and verify `/api/health`.
+- [ ] Run one live project and the acceptance eval, then update the verification note.
 - [ ] Capture a fresh screenshot if the UI changed.
 - [ ] Tag the release (for example, `v0.1.0-hackathon`).
 
@@ -161,7 +161,7 @@ Be explicit in the submission. These are not hidden:
 
 **Tagline:** One recording in. A grounded, on-brand, captioned clip pack out.
 
-**Description:** ClipMind ingests long video, audio, or text and builds a word-level transcript. It generates candidate moments deterministically, asks a model to propose and critique selections, then validates every quote and timestamp before anything is rendered. Each surviving clip gets platform-native copy, a 1080x1920 captioned MP4, a summary, and a structural engagement score. Brand profiles enforce voice and banned words, and every model call is metered against a hard budget. The entire product runs offline in mock mode at $0; switching to the Meta Model API is an environment change.
+**Description:** ClipMind ingests long video, audio, or text and builds a word-level transcript. It generates candidate moments deterministically, asks a model to propose and critique selections, then validates every quote and timestamp before anything is rendered. Each surviving clip gets platform-native copy, a 1080x1920 captioned MP4, a summary, and a structural engagement score. Brand profiles enforce voice and banned words, and every model call is metered against a hard budget. ClipMind runs on a live provider and switches between Groq, Gemini, OpenRouter, Ollama, OpenAI, Meta, and other APIs through environment configuration; the default Groq preset is free.
 
 **Tech:** Python 3.11, FastAPI, Pydantic v2, SQLModel/SQLite, FFmpeg/libass, Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Playwright, Docker Compose.
 

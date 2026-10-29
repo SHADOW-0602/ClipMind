@@ -6,7 +6,7 @@ Base URL: `http://localhost:8000`. Interactive OpenAPI docs: `/docs`. All reques
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/health`, `/api/health` | Liveness, provider, model, mock mode, budget |
+| `GET` | `/health`, `/api/health` | Liveness, provider preset, model, ASR route, budget |
 | `GET` | `/api/system` | Sanitized runtime config for the Settings page (never secrets) |
 
 ## Projects

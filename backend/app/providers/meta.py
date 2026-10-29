@@ -49,7 +49,7 @@ class MetaProvider:
             base_url=settings.meta_base_url.rstrip("/"),
             timeout=httpx.Timeout(settings.meta_timeout_s, connect=20.0),
             headers={
-                "Authorization": f"Bearer {settings.model_api_key}",
+                "Authorization": f"Bearer {settings.resolved_meta_api_key}",
                 "Content-Type": "application/json",
                 "User-Agent": "ClipMind/0.1",
             },

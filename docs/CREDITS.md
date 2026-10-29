@@ -8,6 +8,10 @@ ClipMind was built from an empty repository for the Meta Model API hackathon. No
   - Model IDs, base URL, Bearer authentication, Responses API request shape, `text.format` structured output, speech-to-text constraints, and pricing.
   - Used as the source of truth when the original plan referenced older model generations.
 - **OpenAI Responses-style API conventions** — the Meta Responses endpoint follows a compatible message/content-block shape. ClipMind implements only the subset it needs and documents unverified behavior as `TODO(verify)`.
+- **OpenAI-compatible Chat Completions and Audio APIs** — https://platform.openai.com/docs/api-reference/chat and https://platform.openai.com/docs/api-reference/audio
+  - The generic adapter used by the Groq, Gemini, OpenRouter, Ollama, LM Studio, Mistral, Cerebras, DeepSeek, Together, OpenAI, xAI, Fireworks, and Perplexity presets. It uses `response_format` JSON schema with a `json_object` fallback, `/audio/transcriptions` for ASR, and provider-specific base URLs.
+- **Groq free tier** — https://console.groq.com/docs
+  - Default preset: `llama-3.3-70b-versatile` for text and `whisper-large-v3-turbo` for transcription.
 - **FastAPI** — https://fastapi.tiangolo.com/
   - Dependency injection, `StreamingResponse` for SSE, multipart uploads, lifespan hooks, exception handling.
 - **SQLModel / SQLAlchemy** — https://sqlmodel.tiangolo.com/ and https://docs.sqlalchemy.org/
@@ -25,7 +29,7 @@ ClipMind was built from an empty repository for the Meta Model API hackathon. No
 
 ## Learned patterns used
 
-1. **Provider abstraction over a mode flag.** Keeping mock and Meta behind one interface prevents demo-only code paths. The same orchestration, validation, and cost accounting run in both modes.
+1. **Provider presets behind one adapter.** Most APIs share an OpenAI-compatible adapter; Meta keeps a native Responses implementation. The same orchestration, validation, and cost accounting run for every preset.
 2. **Validate model output in code, not only in the prompt.** Schema validation, quote grounding, word-boundary snapping, banned-word matching, and score clamping are deterministic gates.
 3. **Deterministic search, model judgment.** Candidate windows are cheap and inspectable; the model ranks and critiques them. This avoids asking a language model to invent timestamps.
 4. **Persist progress as data.** Stages, events, and checkpoints are JSON on the job row, so the UI, SSE replay, retry, and resume all read one source of truth.
@@ -43,7 +47,7 @@ ClipMind was built from an empty repository for the Meta Model API hackathon. No
 - `backend/samples/demo-short.mp4`, `demo-long.mp4`, and `demo-short.m4a` were generated locally for this repository with FFmpeg.
 - Narration was synthesized with the Windows SAPI voice available in the build environment via `scripts/tts_sapi.ps1`, then assembled into video with FFmpeg.
 - `backend/samples/transcripts.json` contains SHA256-keyed word-level manifests generated from the known script. It is sample ground truth, not a model output.
-- `backend/samples/demo-transcript.txt` and `fallback_script.txt` are original text written for this project.
+- `backend/samples/demo-transcript.txt` is original text written for this project.
 
 No third-party video, audio, or transcript content is bundled.
 

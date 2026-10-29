@@ -6,7 +6,7 @@ Examples:
     python scripts/seed_demo.py --with-project --wait --force --json
 
 Idempotent: brand profiles are matched by name and updated in place. A demo
-project is reused unless --force is passed. In mock mode a full demo run costs $0.
+project is reused unless --force is passed. The default Groq preset is free.
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ def main() -> int:
         with make_client(args.api_url) as client:
             info = health(client)
             if not args.json:
-                print(f"Seeding ClipMind at {args.api_url} (provider={info['provider']}, mock={info['mock_mode']})")
+                print(f"Seeding ClipMind at {args.api_url} (provider={info['provider']})")
 
             brands: list[dict[str, Any]] = []
             for payload in BRAND_PROFILES:

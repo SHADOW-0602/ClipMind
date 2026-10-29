@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -33,6 +33,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [monthlyCost, setMonthlyCost] = useState<number | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +60,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const drawer = drawerRef.current;
+    const menuButton = menuButtonRef.current;
+    const focusable = () =>
+      drawer?.querySelectorAll<HTMLElement>(
+        'a[href], button:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      );
+    requestAnimationFrame(() => (focusable()?.[0] ?? drawer)?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = Array.from(focusable() ?? []);
+      if (!items.length) {
+        event.preventDefault();
+        drawer?.focus();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !drawer?.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !drawer?.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      menuButton?.focus();
+    };
+  }, [mobileOpen]);
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -110,9 +150,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Engine
             </span>
             {health ? (
-              <Badge tone={health.mock_mode ? "lime" : "sky"} className="px-2 py-0 text-[10px]">
-                <Dot className={health.mock_mode ? "text-lime" : "text-sky"} />
-                {health.mock_mode ? "Mock" : "Meta live"}
+              <Badge tone="sky" className="px-2 py-0 text-[10px] capitalize">
+                <Dot className="text-sky" />
+                {health.provider} live
               </Badge>
             ) : (
               <Badge tone="warning" className="px-2 py-0 text-[10px]">
@@ -121,14 +161,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <p className="mt-2.5 line-clamp-1 text-[12.5px] font-medium text-mist">
-            {health?.model ?? "muse-spark-1.3"}
+            {health?.model ?? "—"}
           </p>
           <p className="mt-0.5 text-[11px] text-faint">
-            {health?.mock_mode
-              ? "Deterministic · $0 per run"
-              : health
-                ? `Budget ${formatUsd(health.max_budget_usd, { precise: false })}`
-                : "Start the API to connect"}
+            {health
+              ? `Budget ${formatUsd(health.max_budget_usd, { precise: false })}`
+              : "Start the API to connect"}
           </p>
           <div className="mt-3 flex items-center justify-between border-t border-line-soft pt-2.5">
             <span className="text-[11px] text-faint">Session spend</span>
@@ -161,10 +199,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
         <span className="text-[13px] font-semibold tracking-[-0.02em]">ClipMind</span>
         <button
+          ref={menuButtonRef}
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Open navigation"
-          className="flex size-9 items-center justify-center rounded-lg border border-line bg-raised text-muted"
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-navigation"
+          className="flex size-11 items-center justify-center rounded-lg border border-line bg-raised text-muted"
         >
           <Menu className="size-4" />
         </button>
@@ -178,12 +219,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileOpen(false)}
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
           />
-          <div className="animate-in-fast absolute inset-y-0 left-0 w-[282px] border-r border-line bg-[#0a0c0a]">
+          <div
+            ref={drawerRef}
+            id="mobile-navigation"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
+            tabIndex={-1}
+            className="animate-in-fast absolute inset-y-0 left-0 w-[min(282px,calc(100vw-2rem))] border-r border-line bg-[#0a0c0a]"
+          >
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Close navigation"
-              className="absolute right-3 top-4 z-10 flex size-8 items-center justify-center rounded-lg text-muted hover:bg-white/5"
+              className="absolute right-3 top-4 z-10 flex size-11 items-center justify-center rounded-lg text-muted hover:bg-white/5"
             >
               <X className="size-4" />
             </button>

@@ -61,7 +61,8 @@ export default function SettingsPage() {
     void load();
   }, [load]);
 
-  const liveEnv = "MOCK_MODE=false\nPROVIDER=meta\nMODEL_API_KEY=your_key_here";
+  const liveEnv =
+    "PROVIDER=groq\nMODEL_API_KEY=your_key_here\n# Optional overrides\nLLM_MODEL=llama-3.3-70b-versatile\nLLM_ASR_MODEL=whisper-large-v3-turbo";
   const runBackend = "cd backend\nuvicorn app.main:app --reload --port 8000";
   const runFrontend = "cd frontend\nnpm run dev";
 
@@ -106,7 +107,7 @@ export default function SettingsPage() {
                 <Badge tone={health ? "success" : loading ? "neutral" : "danger"}>
                   {health ? "online" : loading ? "checking" : "offline"}
                 </Badge>
-                {health?.mock_mode ? <Badge tone="lime">mock mode</Badge> : <Badge tone="sky">live provider</Badge>}
+                <Badge tone="sky">live provider</Badge>
               </div>
               <p className="mt-1 font-mono text-[10px] text-faint">{API_URL}</p>
             </div>
@@ -133,17 +134,27 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="space-y-0.5">
-              <Row label="Text model" value={system?.model ?? health?.model ?? "muse-spark-1.3"} mono />
-              <Row label="Transcription" value={system?.asr_model ?? "muse-voice-transcribe-1.0"} mono />
-              <Row label="Meta ASR enabled" value={system?.use_meta_asr ? "Yes" : "No"} />
+              <Row label="Provider" value={system?.provider ?? health?.provider ?? "—"} />
+              <Row label="Endpoint" value={system?.provider_base_url ?? "—"} mono truncate />
+              <Row label="Text model" value={system?.model ?? health?.model ?? "—"} mono />
+              <Row label="Transcription" value={system?.asr_model ?? "—"} mono />
+              <Row
+                label="ASR route"
+                value={
+                  system?.asr_provider === "whisper"
+                    ? "Local Whisper"
+                    : system?.asr_provider === "meta"
+                      ? "Meta Voice"
+                      : "OpenAI-compatible"
+                }
+              />
               <Row label="Local whisper fallback" value={system?.force_whisper ? "Forced" : "Available if installed"} />
-              <Row label="Mock mode" value={system?.mock_mode ? "On — deterministic, $0" : "Off"} accent={system?.mock_mode} />
             </div>
           )}
           <div className="mt-4 rounded-xl border border-line-soft bg-void/50 p-3.5">
             <div className="flex items-center justify-between">
               <p className="font-mono text-[8.5px] uppercase tracking-[0.14em] text-faint">
-                Switch to live models
+                Switch provider
               </p>
               <button
                 type="button"
@@ -191,6 +202,7 @@ export default function SettingsPage() {
             <Row label="Input / 1M" value={formatUsd(system?.input_price_per_m ?? 0, { precise: false })} />
             <Row label="Cached input / 1M" value={formatUsd(system?.cached_input_price_per_m ?? 0, { precise: false })} />
             <Row label="Output / 1M" value={formatUsd(system?.output_price_per_m ?? 0, { precise: false })} />
+            <Row label="ASR / hour" value={formatUsd(system?.asr_usd_per_hour ?? 0, { precise: true })} />
             <Row label="Hackathon credits" value={formatUsd(system?.hackathon_credits_usd ?? 0, { precise: false })} />
             <Row label="Remaining" value={formatUsd(usage?.remaining_usd ?? 0, { precise: false })} accent />
           </div>

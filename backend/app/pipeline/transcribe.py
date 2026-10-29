@@ -11,8 +11,10 @@ from ..models import MediaAsset, Transcript
 from ..services import cache
 from ..services.asr import (
     MetaTranscriber,
+    OpenAICompatibleTranscriber,
     TranscriptionError,
     prepare_meta_wav,
+    prepare_openai_wav,
     transcribe_with_whisper,
 )
 from ..services.storage import resolve_path
@@ -23,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 SAMPLE_TRANSCRIPTS = BACKEND_DIR / "samples" / "transcripts.json"
-FALLBACK_SCRIPT = BACKEND_DIR / "samples" / "fallback_script.txt"
 
 
 def _load_sample_manifest() -> dict:
@@ -33,31 +34,6 @@ def _load_sample_manifest() -> dict:
         return json.loads(SAMPLE_TRANSCRIPTS.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
-
-
-def _fallback_text(duration: float) -> str:
-    if not FALLBACK_SCRIPT.exists():
-        return (
-            "This is a mock transcript because no speech-to-text provider is configured. "
-            "Switch off MOCK_MODE and add a Meta Model API key to transcribe the real audio. "
-            "The rest of the pipeline is fully functional and the demo sample is grounded."
-        )
-    base = FALLBACK_SCRIPT.read_text(encoding="utf-8").strip()
-    target_words = max(6, int(duration * 2.3))
-    source_sentences = [part.strip() for part in base.replace("\n", " ").split(".") if part.strip()]
-    if not source_sentences:
-        return base
-    chosen: list[str] = []
-    count = 0
-    index = 0
-    while count < target_words and source_sentences:
-        sentence = source_sentences[index % len(source_sentences)]
-        chosen.append(sentence.strip() + ".")
-        count += len(sentence.split())
-        index += 1
-        if index > 2000:
-            break
-    return " ".join(chosen)
 
 
 def _build_text_result(text: str, duration: float, provider: str) -> dict:
@@ -99,39 +75,44 @@ async def transcribe_asset(session: Session, asset_id: str, *, force: bool = Fal
             if asset.checksum in manifest:
                 result = manifest[asset.checksum]
                 result["provider"] = "sample-ground-truth"
-            if result is None and settings.mock_mode:
-                if settings.force_whisper:
-                    audio = resolve_path(asset.audio_path or asset.path)
-                    if not audio:
-                        raise TranscriptionError("Audio track is missing")
-                    result = transcribe_with_whisper(settings, audio)
-                else:
-                    result = _build_text_result(
-                        _fallback_text(asset.duration_s), asset.duration_s, "mock-canned"
-                    )
-                    logger.warning(
-                        "Mock mode used a canned transcript for %s. Add the file to "
-                        "backend/samples/transcripts.json or enable FORCE_WHISPER for real speech.",
-                        asset.original_filename,
-                    )
             if result is None:
                 audio = resolve_path(asset.audio_path)
                 if not audio or not audio.exists():
                     raise TranscriptionError("Audio track is missing; ingestion may have failed")
-                meta_error: Exception | None = None
-                if settings.use_meta_asr and settings.model_api_key and not settings.force_whisper:
+                remote_error: Exception | None = None
+                asr_choice = settings.effective_asr_provider
+                if asr_choice == "meta" and settings.resolved_meta_api_key:
                     try:
                         work_dir = audio.parent
                         meta_wav = work_dir / "audio-meta-24k.wav"
                         prepare_meta_wav(audio, meta_wav)
                         transcriber = MetaTranscriber(settings)
                         try:
-                            result = await transcriber.transcribe(meta_wav, asset.duration_s, work_dir)
+                            result = await transcriber.transcribe(
+                                meta_wav, asset.duration_s, work_dir
+                            )
                         finally:
                             await transcriber.aclose()
-                    except Exception as exc:  # noqa: BLE001 - fall back to local provider
-                        meta_error = exc
+                    except Exception as exc:  # noqa: BLE001 - fall back to local ASR
+                        remote_error = exc
                         logger.warning("Meta Voice Transcribe failed: %s", exc)
+                elif asr_choice == "meta":
+                    remote_error = TranscriptionError("META_API_KEY is not configured")
+                elif asr_choice == "openai_compatible":
+                    try:
+                        work_dir = audio.parent
+                        asr_wav = work_dir / "audio-asr-16k.wav"
+                        prepare_openai_wav(audio, asr_wav)
+                        transcriber = OpenAICompatibleTranscriber(settings)
+                        try:
+                            result = await transcriber.transcribe(
+                                asr_wav, asset.duration_s, work_dir
+                            )
+                        finally:
+                            await transcriber.aclose()
+                    except Exception as exc:  # noqa: BLE001 - fall back to local ASR
+                        remote_error = exc
+                        logger.warning("%s transcription failed: %s", settings.provider, exc)
                 if result is None:
                     try:
                         local_wav = audio
@@ -140,10 +121,11 @@ async def transcribe_asset(session: Session, asset_id: str, *, force: bool = Fal
                             extract_audio(audio, local_wav)
                         result = transcribe_with_whisper(settings, local_wav)
                     except Exception as local_exc:  # noqa: BLE001
-                        detail = f"Meta ASR error: {meta_error}; " if meta_error else ""
+                        detail = f"Remote ASR error: {remote_error}; " if remote_error else ""
                         raise TranscriptionError(
-                            f"{detail}Local transcription failed: {local_exc}. Install faster-whisper "
-                            'with pip install -e ".[whisper]" or configure MODEL_API_KEY.'
+                            f"{detail}Local transcription failed: {local_exc}. Install "
+                            'faster-whisper with pip install -e ".[whisper]" or set '
+                            "ASR_PROVIDER to a provider with transcription support."
                         ) from local_exc
             cache.put_json(cache_key, result)
 

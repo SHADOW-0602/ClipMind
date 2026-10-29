@@ -2,17 +2,17 @@
 
 This is a lightweight architecture decision record. Each entry states the decision, why it was made, and what it costs.
 
-## 1. Mock-first, same pipeline
+## 1. Live providers behind one adapter, selected by preset
 
-**Decision:** `MOCK_MODE=true` / `PROVIDER=mock` is the default. The mock provider implements the same `LLMProvider` interface as Meta and is selected by the same `get_provider()` path.
+**Decision:** ClipMind always runs against a live provider. `PROVIDER` selects a preset (`groq`, `gemini`, `openrouter`, `ollama`, `lmstudio`, `mistral`, `cerebras`, `deepseek`, `together`, `openai`, `openai_compatible`, `xai`, `fireworks`, `perplexity`, `custom`, or `meta`). Most presets use one OpenAI-compatible Chat Completions adapter; `meta` uses the native Responses API.
 
-**Why:** the product must be reviewable end to end without a key or spend. A separate "demo mode" would not exercise the real orchestration, validation, cost, or rendering code.
+**Why:** the product must be reviewable end to end without a vendor lock-in or a separate demo path. A preset fills endpoint, model, ASR route, and prices, while explicit `LLM_*`/`ASR_*` variables still win. The default Groq preset is free.
 
-**Cost:** mock outputs are deterministic and structurally realistic, not semantically creative. Arbitrary media in mock mode uses a canned transcript unless it matches a sample manifest or faster-whisper is enabled.
+**Cost:** every run consumes a provider quota. A missing key fails startup rather than silently falling back to fake output. Tests inject a deterministic `StubProvider` through `set_provider_override()`; that hook is test-only and not selectable from the application environment.
 
-## 2. Meta Model API models and request shape
+## 2. Meta Model API remains an optional native provider
 
-**Decision:** target the current Meta Model API docs (`https://dev.meta.ai/docs`):
+**Decision:** support the current Meta Model API docs (`https://dev.meta.ai/docs`) as `PROVIDER=meta`:
 
 - base URL `https://api.meta.ai/v1`
 - auth `Authorization: Bearer MODEL_API_KEY`
@@ -23,7 +23,7 @@ This is a lightweight architecture decision record. Each entry states the decisi
 
 **Why:** the original plan referenced older model generations and assumed no audio model. The current docs supersede that; using `muse-spark-1.3` and optional `muse-voice-transcribe-1.0` keeps the implementation aligned with the platform.
 
-**Cost:** model IDs and prices are configuration, so a future rename is an `.env` change. The live API was not exercised without a key; see the verification list at the end.
+**Cost:** model IDs and prices are configuration, so a future rename is an `.env` change. The live Meta API was not exercised without a key; see the verification list at the end.
 
 ## 3. Structured JSON with validation and repair
 
@@ -99,7 +99,7 @@ This is a lightweight architecture decision record. Each entry states the decisi
 
 ## 12. Bundled sample ground truth
 
-**Decision:** ship a 100-second demo video, a long demo, an audio file, and SHA256-keyed word-level transcript manifests. `transcribe_asset()` checks the manifest before mock fallback.
+**Decision:** ship a 100-second demo video, a long demo, an audio file, and SHA256-keyed word-level transcript manifests. `transcribe_asset()` checks the manifest before calling remote or local ASR.
 
 **Why:** a demo that shows captions must actually be grounded. Canned text with synthetic timings would undermine the core claim.
 
@@ -131,13 +131,14 @@ This is a lightweight architecture decision record. Each entry states the decisi
 
 ## Verification list (`TODO(verify)`)
 
-These items are implemented from the current docs but could not be verified without a live Meta key:
+These items are implemented from current provider docs but were not smoke-tested with a real key in this repository:
 
-- End-to-end `POST /responses` call with `muse-spark-1.3`, including the exact `text.format` acceptance and response envelope.
+- End-to-end OpenAI-compatible `POST /chat/completions` call, including JSON-schema acceptance and the response envelope across presets.
+- End-to-end `POST /responses` call with `muse-spark-1.3` for `PROVIDER=meta`, including the exact `text.format` acceptance and response envelope.
+- Whisper-compatible `/audio/transcriptions` request/response shape, chunk boundary behavior, and word timestamp fidelity near 10-minute cuts.
 - Muse Voice Transcribe request/response shape, chunk boundary behavior, and word timestamp fidelity near 10-minute cuts.
 - Whether large video inputs require the Files API instead of inline data URLs (the main path uses transcripts and still frames; a TODO is in `providers/meta.py`).
-- Current pricing and model availability at run time. Prices are configurable and should be checked before a paid run.
+- Current pricing and model availability at run time. Free presets report `$0`; paid presets ship list prices and should be checked before a paid run.
 - Rate-limit headers and retry-after behavior under sustained load.
-- `reasoning` / reasoning-effort parameters, if the API exposes them for this model. The current provider sends the documented minimum and does not depend on reasoning traces.
 
 Search the repository for `TODO(verify)` before claiming live-provider coverage.

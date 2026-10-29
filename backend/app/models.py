@@ -65,7 +65,7 @@ class Transcript(SQLModel, table=True):
     language: str = "en"
     text: str = Field(default="", sa_column=Column(Text))
     segments_json: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
-    provider: str = "mock"
+    provider: str = "unknown"
     created_at: datetime = Field(default_factory=utcnow)
 
 

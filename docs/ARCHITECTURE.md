@@ -1,6 +1,6 @@
 # Architecture
 
-ClipMind is a two-service application: a FastAPI backend that owns ingestion, AI calls, media processing, and persistence; and a Next.js App Router frontend that owns the studio experience. The backend is the only component that talks to the Meta Model API.
+ClipMind is a two-service application: a FastAPI backend that owns ingestion, AI calls, media processing, and persistence; and a Next.js App Router frontend that owns the studio experience. The backend is the only component that talks to the configured model provider.
 
 ```text
 ┌──────────────────────────────┐        ┌─────────────────────────────────────┐
@@ -21,7 +21,7 @@ ClipMind is a two-service application: a FastAPI backend that owns ingestion, AI
                                         │                 │                   │
                                         │        ┌────────▼────────┐          │
                                         │        │ Provider layer  │          │
-                                        │        │ Meta | Mock     │          │
+                                        │        │ OpenAI | Meta   │          │
                                         │        └────────┬────────┘          │
                                         │                 │                   │
                                         │        ┌────────▼────────┐          │
@@ -38,7 +38,7 @@ ClipMind is a two-service application: a FastAPI backend that owns ingestion, AI
 | API | `backend/app/api/` | HTTP contracts, validation, serialization, SSE, ZIP export, media serving |
 | Orchestration | `backend/app/pipeline/orchestrator.py` | Job queue, stage checkpoints, progress events, retries, resume, failure persistence |
 | Pipeline | `backend/app/pipeline/` | Ingest, ASR, understanding, selection, copy, summary, render, insights |
-| Providers | `backend/app/providers/` | `LLMProvider` interface, `MetaProvider` (Responses API), `MockProvider` |
+| Providers | `backend/app/providers/` | `LLMProvider` interface, `OpenAICompatibleProvider` (Chat Completions presets), `MetaProvider` (Responses API) |
 | Services | `backend/app/services/` | ASR, cache, cost accounting, prompt loading, storage safety, SRT/ASS utilities |
 | Persistence | `backend/app/models.py`, `db.py` | SQLModel tables, SQLite engine, WAL mode, session scope |
 | Media | `backend/app/utils/media.py` | FFmpeg/ffprobe wrappers, probing, audio extraction, frame sampling |
@@ -61,7 +61,7 @@ The queue is an `asyncio.Queue` with `JOB_CONCURRENCY` workers (default 1). Jobs
 | Stage | Weight | What happens | Hard checks |
 | --- | --- | --- | --- |
 | `ingest` | 8 | Probe, normalize, extract audio, sample keyframes | Duration/size limits; FFmpeg availability |
-| `transcribe` | 18 | Sample ground truth, Meta Voice Transcribe, faster-whisper, or canned mock | Segments have positive duration; words have start/end |
+| `transcribe` | 18 | Sample ground truth, OpenAI-compatible or Meta ASR, or local faster-whisper | Segments have positive duration; words have start/end |
 | `understand` | 16 | Topic segmentation with sentiment, energy, intent, quotability | JSON schema; segment times clamped to source |
 | `select` | 16 | Deterministic candidates, model proposal, self-critique, validation | Quote grounded in transcript; boundaries snapped to words; non-overlap; brand scrub |
 | `copy` + summary | 16 | Platform variants and source summary | Banned-word scrub; caption truncation; summary quotes grounded |
@@ -139,19 +139,23 @@ data/
 
 ## Provider abstraction
 
-`LLMProvider.generate()` accepts a system prompt, messages, optional images/video, a JSON schema, and a cache key. Both providers return a `ModelResult` with parsed JSON, usage, cost, and latency.
+`LLMProvider.generate()` accepts a system prompt, messages, optional images/video, a JSON schema, and a cache key. Both live providers return a `ModelResult` with parsed JSON, usage, cost, and latency.
 
-- **MockProvider** is deterministic and free. It recognizes the task from the prompt (`generate_copy`, `summarize`, `select_clips`, etc.), uses the provided context, scrubs banned words, and returns schema-shaped output. It is not a random stub: the same input produces the same output, which makes tests and demos reliable.
-- **MetaProvider** calls `POST /responses` on `https://api.meta.ai/v1` with `Authorization: Bearer MODEL_API_KEY`. Structured output is requested with `text.format = {"type": "json_schema", "name": ..., "schema": ..., "strict": false}`. It retries 408/409/429/500/502/503/504 with backoff, validates JSON against the schema, performs one repair pass, and records token usage. Responses are cached by a SHA256 of model, prompt, messages, schema, image fingerprints, and explicit cache key.
-- `get_provider()` is process-wide cached; `close_provider()` closes the HTTP client on FastAPI shutdown.
+- **OpenAICompatibleProvider** calls `POST /chat/completions` on the preset's base URL with Bearer auth. It requests `response_format = {"type": "json_schema", ...}` and falls back to `json_object` or no format when an endpoint rejects structured output. It retries 408/409/429/5xx with backoff, validates JSON against the schema, performs one repair pass, and records token usage. Vision input is enabled per preset and retried without images when an endpoint rejects them.
+- **MetaProvider** calls `POST /responses` on `https://api.meta.ai/v1` with `Authorization: Bearer MODEL_API_KEY`. Structured output is requested with `text.format = {"type": "json_schema", "name": ..., "schema": ..., "strict": false}`. It retries 408/409/429/500/502/503/504 with backoff, validates JSON against the schema, performs one repair pass, and records token usage.
+- Responses are cached by a SHA256 of model, prompt, messages, schema, image fingerprints, and explicit cache key.
+- `get_provider()` is process-wide cached; `close_provider()` closes the HTTP client on FastAPI shutdown. A missing key for a key-required preset fails startup.
+- Tests inject a deterministic `StubProvider` through `set_provider_override()`. It lives under `backend/tests/` and is not part of the application's selectable configuration.
 
 ### Speech-to-text strategy
 
 1. Text uploads bypass ASR and get synthetic word timings.
 2. Bundled sample media is matched by SHA256 against `backend/samples/transcripts.json` (word-level ground truth).
-3. Mock mode uses a deterministic canned script for unknown media, unless `FORCE_WHISPER=true`.
-4. Real mode tries Meta Voice Transcribe when `USE_META_ASR=true` and a key exists. Audio is converted to mono 16-bit PCM WAV at 24 kHz, split into ≤10-minute, ≤32 MB chunks, transcribed, and merged with offset timings.
-5. If Meta ASR fails, faster-whisper is attempted. If neither is available, the job fails with an actionable message.
+3. For other media, the ASR route comes from the preset or `ASR_PROVIDER`:
+   - `openai_compatible` calls `/audio/transcriptions` on the provider base URL. Audio is converted to mono 16-bit PCM WAV at 16 kHz, split into ≤10-minute chunks, transcribed, and merged with offset timings.
+   - `meta` uses Meta Voice Transcribe. Audio is converted to mono 16-bit PCM WAV at 24 kHz and split into ≤10-minute, ≤32 MB chunks.
+   - `whisper` runs local faster-whisper.
+4. If the remote ASR call fails, faster-whisper is attempted. If neither is available, the job fails with an actionable message.
 
 ## Frontend
 
@@ -185,6 +189,7 @@ data/
 - `backend/tests/test_api.py` exercises the full text-to-clip pipeline, stage persistence, brand CRUD, banned-word rejection, copy regeneration, export, and deletion.
 - `backend/tests/test_samples.py` uploads the bundled video, verifies sample-ground-truth ASR, completes the pipeline, and probes the render dimensions.
 - `backend/tests/test_transcripts.py` covers word timings, SRT, quote grounding, snapping, and overlap removal.
-- `backend/tests/test_mock_provider.py` verifies deterministic copy and summary behavior.
+- `backend/tests/test_config.py` covers provider presets and validation.
+- `backend/tests/test_openai_compatible.py` covers the Chat Completions adapter, JSON fallback, vision toggle, and transcription parsing.
 - `frontend/e2e/smoke.spec.ts` covers the dashboard, brand creation, demo pipeline, clip edit/save, and re-render in Chromium.
 - `scripts/eval.py` runs 81 acceptance checks on a fresh project against a live API (80 when re-evaluating a stored project).

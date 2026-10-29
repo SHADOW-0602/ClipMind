@@ -233,8 +233,9 @@ export default function NewProjectPage() {
                 <button
                   type="button"
                   onClick={() => setSourceType("file")}
+                  aria-pressed={sourceType === "file"}
                   className={cn(
-                    "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-medium transition-colors",
+                    "inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-[12px] font-medium transition-colors",
                     sourceType === "file" ? "bg-raised text-mist" : "text-muted hover:text-mist",
                   )}
                 >
@@ -244,8 +245,9 @@ export default function NewProjectPage() {
                 <button
                   type="button"
                   onClick={() => setSourceType("text")}
+                  aria-pressed={sourceType === "text"}
                   className={cn(
-                    "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12px] font-medium transition-colors",
+                    "inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-[12px] font-medium transition-colors",
                     sourceType === "text" ? "bg-raised text-mist" : "text-muted hover:text-mist",
                   )}
                 >
@@ -312,7 +314,7 @@ export default function NewProjectPage() {
                       onClick={() => setNClips(choice)}
                       disabled={busy}
                       className={cn(
-                        "flex h-10 items-center justify-center rounded-xl border text-[12.5px] font-medium transition-all",
+                        "flex min-h-11 items-center justify-center rounded-xl border text-[12.5px] font-medium transition-all",
                         nClips === choice
                           ? "border-lime/45 bg-lime/10 text-lime"
                           : "border-line bg-void text-muted hover:border-[#3a4135] hover:text-mist",
@@ -343,7 +345,7 @@ export default function NewProjectPage() {
                         disabled={busy}
                         aria-pressed={active}
                         className={cn(
-                          "inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-[11.5px] font-medium transition-all",
+                          "inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-[11.5px] font-medium transition-all",
                           active
                             ? "border-lime/35 bg-lime/[0.075] text-mist"
                             : "border-line bg-void text-faint hover:border-[#3a4135] hover:text-muted",
@@ -454,7 +456,7 @@ export default function NewProjectPage() {
               <div className="border-t border-line-soft pt-3">
                 <SummaryRow label="Estimated spend" value={formatUsd(0)} accent />
                 <p className="mt-1.5 text-[10px] leading-relaxed text-faint">
-                  Mock mode is deterministic and free. Live Meta calls are metered against your budget.
+                  The default Groq preset is free; live calls are metered against your budget.
                 </p>
               </div>
             </div>

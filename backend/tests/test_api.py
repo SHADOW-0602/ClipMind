@@ -55,8 +55,8 @@ def test_health_and_brand_crud(client):
     health = client.get("/api/health")
     assert health.status_code == 200
     body = health.json()
-    assert body["provider"] == "mock"
-    assert body["mock_mode"] is True
+    assert body["provider"] == "openai_compatible"
+    assert body["asr_provider"] == "whisper"
 
     created = client.post(
         "/api/brand-profiles",
@@ -204,8 +204,9 @@ def test_demo_project_and_sanitized_system_info(client):
     system = client.get("/api/system")
     assert system.status_code == 200
     body = system.json()
-    assert body["mock_mode"] is True
-    assert body["provider"] == "mock"
+    assert body["provider"] == "openai_compatible"
+    assert body["asr_provider"] == "whisper"
+    assert body["provider_base_url"] == "http://testserver/v1"
     assert "api_key" not in {key.lower() for key in body}
     assert "model_api_key" not in body
 

@@ -4,14 +4,14 @@
 
 ClipMind is a full-stack multimodal content-intelligence studio. Upload a long video, audio file, or pasted transcript. ClipMind produces a word-level transcript, selects the strongest moments, writes platform-native copy, renders 9:16 captioned clips, summarizes the source, and scores the result — with a brand voice and a hard budget guard.
 
-The entire product runs **offline in `MOCK_MODE=true` at $0** with deterministic AI. Switching to the Meta Model API is a configuration change, not a code change.
+ClipMind always runs against a live model provider. The default preset is **Groq's free tier** — OpenAI-compatible chat plus Whisper transcription with one key. The same code switches to Gemini, OpenRouter, Ollama, LM Studio, Mistral, Cerebras, OpenAI, Meta, or any custom OpenAI-compatible endpoint through environment variables.
 
 ![ClipMind dashboard](docs/images/dashboard.png)
 
 ## What is in the box
 
 - **Ingest** — video, audio, and pasted text; FFmpeg normalization, metadata probe, keyframes, duration/size limits, rights attestation.
-- **Word-level transcript** — Meta Muse Voice Transcribe (10-minute chunks), optional local faster-whisper, bundled sample ground truth, or a canned mock transcript.
+- **Word-level transcript** — provider ASR (Groq Whisper, Mistral Voxtral, OpenAI Whisper, or Meta Voice Transcribe), optional local faster-whisper, or bundled sample ground truth.
 - **Grounded clip selection** — deterministic candidate scoring + model proposal + self-critique + quote/boundary validation. A clip cannot survive with an invented quote or an out-of-range timestamp.
 - **Platform copy** — Instagram, YouTube Shorts, TikTok, LinkedIn, and X variants with hooks, hashtags, and CTAs; brand tone, audience, examples, and banned words are enforced at generation and on every manual save.
 - **Vertical renders** — 1080×1920 MP4 with burned-in ASS captions; landscape sources get a blurred, darkened canvas and a centered full frame; SRT and thumbnails included.
@@ -21,12 +21,14 @@ The entire product runs **offline in `MOCK_MODE=true` at $0** with deterministic
 - **Cost tracking** — every model and ASR call is metered against `MAX_BUDGET_USD`; cached calls are tracked separately.
 - **Ops** — Docker Compose, Makefile, pytest, Playwright smoke test, demo seeder, and an 81-check acceptance eval.
 
-## Quickstart (mock mode, $0)
+## Quickstart (free tier)
 
-**Prerequisites:** Python 3.11+, Node.js 20+, FFmpeg 6+ on `PATH`. Windows, macOS, and Linux are supported.
+**Prerequisites:** Python 3.11+, Node.js 20+, FFmpeg 6+ on `PATH`. Windows, macOS, and Linux are supported. A free Groq API key is required for the default preset.
 
 ```bash
 cp .env.example .env
+# Put your key from https://console.groq.com/keys in .env:
+# MODEL_API_KEY=gsk_...
 python -m venv .venv
 
 # Windows
@@ -46,7 +48,7 @@ Open **http://localhost:3000**. Click **Run the demo** on the dashboard, or run 
 python scripts/demo.py
 ```
 
-The demo uses a bundled 100-second recording with a SHA256-keyed, word-level ground-truth transcript. It runs the full pipeline and renders vertical clips locally. No API key is required.
+The demo uses a bundled 100-second recording with a SHA256-keyed, word-level ground-truth transcript, so the sample skips ASR. The reasoning, selection, copy, summary, and insights stages call the configured provider and consume your free-tier quota.
 
 If `python scripts/dev.py` is not convenient, run the two services in separate terminals:
 
@@ -60,24 +62,44 @@ cd frontend
 npm run dev
 ```
 
-## Use the real Meta Model API
+## Switch providers
+
+`PROVIDER` selects a preset. A preset fills `LLM_BASE_URL`, `LLM_MODEL`, `LLM_ASR_MODEL`, vision support, and prices, but any value you set explicitly in `.env` still wins.
+
+| Preset | Text model | Transcription | Cost |
+| --- | --- | --- | --- |
+| `groq` (default) | `llama-3.3-70b-versatile` | Groq Whisper | Free tier |
+| `gemini` | `gemini-2.5-flash` | local Whisper | Free tier |
+| `openrouter` | `meta-llama/llama-3.3-70b-instruct:free` | local Whisper | Free models |
+| `ollama` | `llama3.2` | local Whisper | Local |
+| `lmstudio` | `local-model` | local Whisper | Local |
+| `mistral` | `mistral-small-latest` | Voxtral | Free tier |
+| `cerebras` | `llama-3.3-70b` | local Whisper | Free tier |
+| `deepseek` | `deepseek-chat` | local Whisper | Paid |
+| `together` | Llama 3.3 70B Turbo | Whisper Large v3 | Paid |
+| `openai` / `openai_compatible` | `gpt-4o-mini` | `whisper-1` | Paid |
+| `xai`, `fireworks`, `perplexity` | provider default | local Whisper | Paid |
+| `custom` | your `LLM_MODEL` | your choice | Your endpoint |
+| `meta` | `muse-spark-1.3` | Meta Voice Transcribe | Paid |
+
+Example: switch to a fully local setup with no key.
 
 ```dotenv
-MOCK_MODE=false
-PROVIDER=meta
-MODEL_API_KEY=your_key_here
+PROVIDER=ollama
+# LLM_BASE_URL=http://localhost:11434/v1
+# LLM_MODEL=llama3.2
 ```
 
-Restart the backend. The defaults target:
+Example: use Gemini's free tier, with local Whisper handling transcription.
 
-| Purpose | Model |
-| --- | --- |
-| Reasoning, selection, copy, summaries, insights | `muse-spark-1.3` |
-| Speech-to-text | `muse-voice-transcribe-1.0` |
+```dotenv
+PROVIDER=gemini
+MODEL_API_KEY=your_google_ai_studio_key
+```
 
-The Meta provider uses the Responses API (`POST /responses`) with `text.format` JSON schema output, retries on 408/409/429/5xx, a JSON repair pass, response caching, and a pre-call budget guard. See [docs/DECISIONS.md](docs/DECISIONS.md) for the API decisions and the `TODO(verify)` items.
+For any other OpenAI-compatible endpoint, use `PROVIDER=custom` and set both `LLM_BASE_URL` and `LLM_MODEL`. `custom` defaults transcription to local Whisper; set `ASR_PROVIDER=openai_compatible` and `LLM_ASR_MODEL` to use the endpoint's `/audio/transcriptions` route. The adapter uses Chat Completions with JSON-schema output, falls back to `json_object` when an endpoint rejects structured output, retries on 408/409/429/5xx, repairs malformed JSON, caches responses, and checks the budget before each call. See [docs/DECISIONS.md](docs/DECISIONS.md) for provider decisions.
 
-> **Verification note:** no real Meta API key was available while this repository was built. Mock mode is fully verified; the real-provider path is implemented from the current Meta docs but has not been smoke-tested against the live service. Do not claim live-provider verification until a key is available.
+> **Verification note:** the OpenAI-compatible adapter passed an end-to-end HTTP smoke test against a local stub server, including the 81-check acceptance eval. Vendor endpoints (Groq, Gemini, OpenRouter, OpenAI, Meta, and others) have not been exercised with a real key in this repository. Run `python scripts/demo.py` with your key before claiming live-vendor verification.
 
 ## Docker
 
@@ -90,7 +112,7 @@ docker compose up --build
 - API: http://localhost:8000
 - API docs: http://localhost:8000/docs
 
-The backend container includes FFmpeg and the bundled demo samples, and stores runtime data in the `clipmind-data` volume. This path was verified on 2026-10-23: both containers started, the backend reported healthy, the UI served at port 3000, the acceptance eval passed **81/81** against the containerized API, and the Playwright suite passed **3/3** through the containerized UI. To reset everything:
+The backend container includes FFmpeg and the bundled demo samples, and stores runtime data in the `clipmind-data` volume. Compose reads the repository-root `.env`, so set `MODEL_API_KEY` there before starting. The stack was rebuilt after the multi-provider refactor and verified with a local OpenAI-compatible stub: backend healthy, frontend HTTP 200, acceptance eval 81/81, and Playwright 3/3 through the containerized UI. A run with a real vendor key is still pending. To reset everything:
 
 ```bash
 docker compose down -v
@@ -123,10 +145,10 @@ Stages are persisted as JSON checkpoints. A failed stage retries once, then fail
 
 ### Cost controls
 
-- Prices are configuration, not hard-coded in prompts: `META_INPUT_PRICE_PER_M`, `META_CACHED_INPUT_PRICE_PER_M`, `META_OUTPUT_PRICE_PER_M`.
+- Prices are configuration, not hard-coded in prompts: `LLM_INPUT_PRICE_PER_M`, `LLM_CACHED_INPUT_PRICE_PER_M`, `LLM_OUTPUT_PRICE_PER_M`, and `LLM_ASR_USD_PER_HOUR` (or the `META_*` equivalents for `PROVIDER=meta`).
 - `MAX_BUDGET_USD` is checked before each model call and during ASR. A run stops with `BudgetExceeded` rather than overspending.
 - Every call is stored in SQLite with tokens, latency, cache hit, purpose, and cost. The Usage page and `/api/usage` expose totals, remaining budget, and remaining hackathon credits.
-- Mock calls are recorded with `$0.00` cost so the same UI and accounting path is exercised.
+- Free-tier presets report `$0` until you set list prices, so the budget guard cannot protect a paid account accidentally configured as free.
 
 ## Acceptance checks
 
@@ -149,7 +171,7 @@ cd ..
 .\.venv\Scripts\python.exe scripts\eval.py
 ```
 
-The eval checks 81 properties on a fresh run (80 stored-project properties plus pipeline completion), including word timings, quote grounding, clip bounds and non-overlap, platform coverage, caption limits, brand safety, 1080×1920 renders, SRT contents, summary quote grounding, insight coverage, export contents, and zero-cost mock accounting. See [docs/EVALS.md](docs/EVALS.md) for the latest result.
+The eval checks the full acceptance contract on a fresh run, including word timings, quote grounding, clip bounds and non-overlap, platform coverage, caption limits, brand safety, 1080×1920 renders, SRT contents, summary quote grounding, insight coverage, export contents, and non-negative cost accounting. See [docs/EVALS.md](docs/EVALS.md) for the latest result.
 
 ## Project layout
 
@@ -158,7 +180,7 @@ backend/
   app/
     api/            projects, uploads, jobs/SSE, clips, brands, insights, export, media
     pipeline/       ingest, transcribe, understand, select, copy, summary, render, insights, orchestrator
-    providers/      provider interface, Meta Responses API, deterministic mock
+    providers/      provider interface, OpenAI-compatible adapter, Meta Responses API
     services/       ASR, cache, costs, prompts, storage, transcript/SRT/ASS utilities
     prompts/        versioned prompt templates
     models.py       SQLModel tables
@@ -180,21 +202,22 @@ Copy `.env.example` to `.env`. The most important settings:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `MOCK_MODE` | `true` | Run the full pipeline with deterministic mock AI at $0 |
-| `PROVIDER` | `mock` | `mock` or `meta` |
-| `MODEL_API_KEY` | empty | Meta Model API key (Bearer token) |
-| `META_MODEL` | `muse-spark-1.3` | Reasoning model |
-| `META_ASR_MODEL` | `muse-voice-transcribe-1.0` | Speech-to-text model |
-| `USE_META_ASR` | `true` | Use Meta ASR when a key is present |
+| `PROVIDER` | `groq` | Preset: `groq`, `gemini`, `openrouter`, `ollama`, `lmstudio`, `mistral`, `cerebras`, `deepseek`, `together`, `openai`, `openai_compatible`, `xai`, `fireworks`, `perplexity`, `custom`, `meta` |
+| `MODEL_API_KEY` | empty | Shared provider key. Required for key-required presets |
+| `LLM_BASE_URL` | preset | OpenAI-compatible endpoint |
+| `LLM_MODEL` | preset | Reasoning, selection, copy, summary, insights |
+| `LLM_ASR_MODEL` | preset | Remote speech-to-text model |
+| `ASR_PROVIDER` | `auto` | `auto`, `openai_compatible`, `meta`, or `whisper` |
 | `MAX_BUDGET_USD` | `100` | Hard spend ceiling |
 | `DATA_DIR` | `./data` | Uploads, processed media, renders, cache, SQLite |
 | `MAX_UPLOAD_MB` | `500` | Upload size limit |
 | `MAX_DURATION_S` | `7200` | Source duration limit |
 | `JOB_CONCURRENCY` | `1` | In-process worker count |
 | `CORS_ORIGINS` | `http://localhost:3000,...` | Allowed browser origins |
+| `PUBLIC_API_URL` | `http://localhost:8000` | Base URL used in API-returned media links |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Browser-visible API URL |
 
-See `.env.example` for the complete list, including ASR fallback and rate limiting.
+See `.env.example` for the complete list, including Meta settings, local Whisper, and rate limiting.
 
 ## API
 
@@ -226,12 +249,12 @@ Core endpoints:
 
 - The job queue is in-process and single-node; it is correct for a demo but not a durable distributed queue.
 - There is no authentication or multi-tenancy. Do not expose a production deployment without adding both.
-- In mock mode, arbitrary uploaded media uses a canned transcript unless its SHA256 is in `backend/samples/transcripts.json` or `FORCE_WHISPER=true` with faster-whisper installed. The bundled demo is fully grounded.
-- Real Meta API behavior could not be verified without a key; see the note above.
+- Local Whisper is optional. Install `faster-whisper` with `pip install -e "./backend[whisper]"` when a preset uses local transcription or when remote ASR fails.
+- The OpenAI-compatible adapter is exercised over HTTP against a local stub, but no vendor endpoint has been smoke-tested with a real key in this repository; run the demo with your key before claiming live-vendor verification.
 - Rendering is CPU-bound and serialized by `JOB_CONCURRENCY=1` by default.
 - Engagement predictions are estimates from transcript structure, not platform telemetry.
 - Publishing to social platforms is intentionally out of scope; ClipMind exports a review-ready pack.
 
 ## Credits
 
-ClipMind was built for the Meta Model API hackathon. It uses the current Meta Model API docs as the source of truth for model IDs and request shapes, and documents learned patterns and references in [docs/CREDITS.md](docs/CREDITS.md). No reference-project code was copied. Demo media and transcripts were generated locally for this repository.
+ClipMind was built for the Meta Model API hackathon. The provider layer supports Meta's Responses API plus any OpenAI-compatible Chat Completions endpoint. Model IDs and request shapes follow each provider's current documentation, and learned patterns and references are documented in [docs/CREDITS.md](docs/CREDITS.md). No reference-project code was copied. Demo media and transcripts were generated locally for this repository.

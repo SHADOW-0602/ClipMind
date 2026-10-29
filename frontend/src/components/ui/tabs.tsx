@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
 export interface TabItem {
@@ -22,6 +23,8 @@ export function Tabs({
   className?: string;
   size?: "sm" | "md";
 }) {
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
   return (
     <div
       role="tablist"
@@ -30,18 +33,33 @@ export function Tabs({
         className,
       )}
     >
-      {items.map((item) => {
+      {items.map((item, index) => {
         const active = item.value === value;
         return (
           <button
             key={item.value}
+            ref={(node) => {
+              tabRefs.current[index] = node;
+            }}
             type="button"
             role="tab"
             aria-selected={active}
+            tabIndex={active ? 0 : -1}
             onClick={() => onValueChange(item.value)}
+            onKeyDown={(event) => {
+              let nextIndex: number | null = null;
+              if (event.key === "ArrowRight") nextIndex = (index + 1) % items.length;
+              if (event.key === "ArrowLeft") nextIndex = (index - 1 + items.length) % items.length;
+              if (event.key === "Home") nextIndex = 0;
+              if (event.key === "End") nextIndex = items.length - 1;
+              if (nextIndex === null) return;
+              event.preventDefault();
+              tabRefs.current[nextIndex]?.focus();
+              onValueChange(items[nextIndex].value);
+            }}
             className={cn(
-              "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg font-medium transition-all",
-              size === "sm" ? "h-7 px-2.5 text-[11.5px]" : "h-8 px-3 text-[12.5px]",
+              "inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg font-medium transition-all",
+              size === "sm" ? "px-2.5 text-[11.5px]" : "px-3 text-[12.5px]",
               active
                 ? "bg-raised text-mist shadow-sm"
                 : "text-muted hover:bg-white/[0.04] hover:text-mist",

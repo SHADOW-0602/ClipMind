@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from ..config import get_settings
 from ..db import get_session
 from ..models import AsrCall, InsightReport, ModelCall, Project
 from ..schemas import InsightRead, UsageRead
@@ -30,6 +31,7 @@ def get_usage() -> UsageRead:
 @router.get("/usage/calls")
 def get_usage_calls(limit: int = 50, session: Session = Depends(get_session)) -> list[dict]:
     limit = max(1, min(limit, 200))
+    settings = get_settings()
     calls = session.exec(
         select(ModelCall).order_by(ModelCall.created_at.desc()).limit(limit)
     ).all()
@@ -60,7 +62,13 @@ def get_usage_calls(limit: int = 50, session: Session = Depends(get_session)) ->
             "id": call.id,
             "kind": "asr",
             "job_id": call.job_id,
-            "provider": "meta",
+            "provider": (
+                "meta"
+                if call.model == settings.meta_asr_model
+                else settings.provider
+                if call.model == settings.llm_asr_model
+                else "whisper"
+            ),
             "model": call.model,
             "purpose": "transcribe",
             "input_tokens": 0,

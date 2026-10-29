@@ -1,8 +1,8 @@
 # Progress Log
 
-ClipMind was built from an empty repository in nine phases. Each phase ended with a runnable slice, a check, and a commit. The final verification was on **2026-10-23** against both the local and Docker Compose mock-mode stacks.
+ClipMind was built from an empty repository in nine phases. Each phase ended with a runnable slice and a check. The latest verification was on **2026-10-29** after the multi-provider refactor: backend tests, Ruff, compileall, frontend typecheck, lint, and the production build passed locally. The acceptance eval passed 81/81 on the host and through Docker Compose, and Playwright passed 3/3 through the Compose UI, all against a local OpenAI-compatible stub.
 
-**Status:** complete and demo-ready in mock mode. Docker Compose is verified end to end; live Meta API behavior remains unverified and is explicit in [EVALS.md](EVALS.md) and [SUBMISSION.md](SUBMISSION.md).
+**Status:** complete and demo-ready on a live provider. The default Groq preset is free. Docker Compose was rebuilt after the provider refactor and verified with a local stub; live vendor behavior remains unverified and is explicit in [EVALS.md](EVALS.md) and [SUBMISSION.md](SUBMISSION.md).
 
 ## Phase summary
 
@@ -10,13 +10,14 @@ ClipMind was built from an empty repository in nine phases. Each phase ended wit
 | --- | --- | --- |
 | 0. Setup and discovery | Repo, environment, model/API decisions, sample plan | `30dfedf` |
 | 1. Backend foundation | FastAPI app, config, SQLite/SQLModel, schemas, services, API skeleton | `30dfedf` |
-| 2. Provider layer | Provider interface, Meta Responses client, deterministic mock, budget/cache | `30dfedf` |
+| 2. Provider layer | Provider interface, OpenAI-compatible adapter, Meta Responses client, presets, budget/cache | `30dfedf` |
 | 3. Ingest and transcription | Video/audio/text upload, FFmpeg, ASR chunking, sample ground truth | `30dfedf` |
 | 4. Understanding and selection | Topics, candidate windows, proposal/critique, grounding, boundaries | `30dfedf` |
 | 5. Copy, summary, insights | Platform variants, brand rules, summaries, chapters, scorecards | `30dfedf` |
 | 6. Render and export | ASS captions, 1080x1920 renders, blurred canvas, ZIP export | `30dfedf` |
 | 7. Frontend | All pages, SSE progress, clip editor, brands, usage, settings | `a7433d3` |
 | 8. Hardening and submission | Tests, Playwright, eval, Docker, docs, demo, screenshots | `38c8b5e`, `0679356`, `d9f179b`, `0205312`, `e78d26a` |
+| 9. Multi-provider refactor | Removed mock mode, added free Groq default and switchable presets | this commit |
 
 The backend phases landed in one cohesive commit because they share the same models, pipeline contracts, and test fixture. The frontend, ops tooling, and documentation are separate commits.
 
@@ -26,11 +27,11 @@ The backend phases landed in one cohesive commit because they share the same mod
 
 - Read the current Meta Model API docs and reconciled them with the older assumptions in the plan.
 - Confirmed model IDs and request shape: `muse-spark-1.3`, `muse-voice-transcribe-1.0`, base URL `https://api.meta.ai/v1`, Bearer auth, Responses API, and `text.format` JSON schema output.
-- Chose a mock-first architecture so the full product is reviewable at $0.
+- Chose a provider-agnostic architecture so the pipeline is not tied to one vendor.
 - Defined the data model, pipeline stages, and validation gates before writing endpoints.
 - Generated the bundled demo media and SHA256-keyed word-level transcript manifests.
 
-**Verification:** `.env.example` is mock-first; `backend/samples/` contains a 100s short, a 464s long recording, an audio file, and three transcript manifests.
+**Verification:** `backend/samples/` contains a 100s short, a 464s long recording, an audio file, and three transcript manifests.
 
 ## Phase 1 - Backend foundation
 
@@ -49,16 +50,17 @@ The backend phases landed in one cohesive commit because they share the same mod
 
 ## Phase 2 - Provider layer
 
-**Goal:** one provider contract for mock and Meta, with hard cost and output controls.
+**Goal:** one provider contract with hard cost and output controls.
 
 - `LLMProvider` interface for structured JSON generation.
-- `MetaProvider` using `POST /responses`, Bearer auth, JSON schema output, retries on 408/409/429/5xx, a JSON repair pass, and response caching.
+- `OpenAICompatibleProvider` using `POST /chat/completions`, Bearer auth, JSON schema output with a `json_object` fallback, retries on 408/409/429/5xx, a JSON repair pass, and response caching.
+- `MetaProvider` using `POST /responses`, Bearer auth, JSON schema output, retries, a repair pass, and response caching.
+- Provider presets for Groq, Gemini, OpenRouter, Ollama, LM Studio, Mistral, Cerebras, DeepSeek, Together, OpenAI, xAI, Fireworks, Perplexity, custom endpoints, and Meta.
 - Process-wide cached `get_provider()` and shutdown `close_provider()`.
 - Pre-call budget guard and per-call accounting with tokens, latency, cache hit, purpose, and cost.
-- Deterministic `MockProvider` with schema-shaped outputs for every pipeline task.
 - Versioned prompt templates for understanding, selection, critique, copy, summary, and insights.
 
-**Verification:** `test_mock_provider.py`; mock calls are recorded at `$0.0000`; the acceptance eval checks the budget invariant.
+**Verification:** `test_config.py` and `test_openai_compatible.py`; the acceptance eval checks the budget invariant.
 
 **Notable fixes:**
 
@@ -73,8 +75,8 @@ The backend phases landed in one cohesive commit because they share the same mod
 - FFmpeg normalization, `ffprobe` metadata, audio extraction, keyframes, and thumbnail generation.
 - Transcript persistence with segments and word timings.
 - Meta Muse Voice Transcribe path with mono 16-bit PCM WAV, 16/24 kHz, 10-minute chunking, and 32 MB per-request limits.
+- OpenAI-compatible transcription path for Groq, OpenAI, Mistral, Together, and compatible gateways.
 - Optional faster-whisper fallback and a sample manifest lookup keyed by file SHA256.
-- Canned mock transcript for arbitrary media when no manifest or local ASR is available.
 
 **Verification:** `test_samples.py` uploads the demo video, matches the sample manifest, completes the pipeline, and checks a 1080x1920 render. The demo reports 29 segments and 213 word timings from `sample-ground-truth`.
 
@@ -145,7 +147,7 @@ The backend phases landed in one cohesive commit because they share the same mod
 
 **Goal:** make the repository reviewable without a guided tour.
 
-- Backend tests expanded to 13, including stage status assertions, demo creation, system config, CORS env parsing, sample media, transcript utilities, and mock provider behavior.
+- Backend tests now cover 20 cases, including stage status assertions, demo creation, system config, CORS env parsing, sample media, transcript utilities, provider presets, and the OpenAI-compatible adapter.
 - Playwright smoke test added with a reusable webServer config and CI-friendly backend command override.
 - Acceptance eval added: 81 checks across project, transcript, clips, summary, insights, export, and usage.
 - API-driven demo, seed, and eval scripts so they work against local, Docker, or deployed instances.
@@ -154,22 +156,22 @@ The backend phases landed in one cohesive commit because they share the same mod
 - Dashboard and clip-studio screenshots captured from a completed demo.
 - Runtime data cleaned down to completed demos; brands seeded for screenshots.
 
-**Verification:** 13 backend tests passed, 3 Playwright tests passed through the containerized UI, frontend build succeeded, Docker Compose started with a healthy backend, and the fresh acceptance eval passed **81/81** checks at **$0.0000** against the containerized API.
+**Verification:** 20 backend tests passed, frontend typecheck/lint/build passed, and Ruff/compileall are clean. The demo pipeline and the 81-check acceptance eval passed against a local OpenAI-compatible stub server over HTTP, and the Compose stack passed the eval 81/81 plus Playwright 3/3 through the containerized UI. A real vendor run still requires a live provider key.
 
 ## Verification matrix
 
 | Area | Command | Latest result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 13 passed |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 20 passed |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | clean |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | clean |
 | Frontend types | `cd frontend && npm run typecheck` | clean |
 | Frontend lint | `cd frontend && npm run lint` | clean |
 | Frontend build | `cd frontend && npm run build` | success, 8 routes |
-| Docker Compose | `docker compose up -d --build` | backend healthy, frontend HTTP 200 |
-| Browser smoke | `cd frontend && npm run test:e2e` | 3 passed (2.1m, against Compose) |
-| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py` | 81/81 passed (against Compose) |
-| Demo CLI | `.\.venv\Scripts\python.exe scripts\demo.py` | 3 clips, 3 rendered, $0 |
+| Docker Compose | `docker compose up -d --build` | verified: backend healthy, frontend 200 |
+| Browser smoke | `cd frontend && npm run test:e2e` | 3 passed through the containerized UI |
+| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py` | 81/81 against a local HTTP stub (host and Compose); live vendor pending |
+| Demo CLI | `.\.venv\Scripts\python.exe scripts\demo.py` | 3 clips, 3 rendered against a local HTTP stub |
 
 ## Deviations from the original plan
 
@@ -180,15 +182,15 @@ The backend phases landed in one cohesive commit because they share the same mod
 | Model chooses arbitrary timestamps | Deterministic candidates + model proposal/critique + validation | Grounding and bounded search |
 | SRT `force_style` captions | Generated ASS with explicit 1080x1920 PlayRes | Reliable sizing/placement |
 | Hard center crop for landscape | Blurred/darkened vertical canvas with centered full frame | Preserve titles, faces, and slides |
-| Separate demo mode | Mock provider behind the same interface | Exercise the real pipeline at $0 |
+| Single-vendor provider | OpenAI-compatible presets plus a native Meta provider | Free default and switchable APIs |
 | 80-check eval | 81 checks on a fresh run (80 stored checks + pipeline completion) | The fresh run adds `pipeline.completed` |
 
 ## Known gaps and next steps
 
-1. **Live Meta verification.** Add a key, run one project, confirm the Responses envelope, ASR timings, Files API behavior for large video, rate-limit headers, and current prices. Update the `TODO(verify)` list.
-2. **Production containers.** Compose is verified on one host; add Kubernetes or multi-host orchestration, image scanning, health-based rollouts, and resource limits before production.
+1. **Live provider verification.** Add a key, run one project, confirm the OpenAI-compatible and Meta envelopes, ASR timings, Files API behavior for large video, rate-limit headers, and current prices. Update the `TODO(verify)` list.
+2. **Production containers.** Compose is configured but not re-verified after the provider refactor; rebuild it with a real key and then add Kubernetes or multi-host orchestration, image scanning, health-based rollouts, and resource limits before production.
 3. **Durable infrastructure.** Postgres, a durable queue, object storage, render workers, auth, per-user quotas, and audit logs.
-4. **ASR quality.** Benchmark Muse Voice Transcribe and faster-whisper on real podcasts, accents, and overlapping speech.
+4. **ASR quality.** Benchmark Groq Whisper, Muse Voice Transcribe, and faster-whisper on real podcasts, accents, and overlapping speech.
 5. **Engagement validation.** Correlate structural scores with actual platform retention before making stronger claims.
 6. **Accessibility and browsers.** Add Firefox/WebKit Playwright projects, automated axe checks, and mobile viewport tests.
 7. **Publishing.** Add OAuth and direct publishing only after the review/export workflow is trusted.

@@ -6,9 +6,9 @@ import time
 from collections import Counter
 from typing import Any
 
-from ..config import Settings
-from ..services.costs import log_model_call
-from .base import ImageInput, Message, ModelResult, ToolSpec, VideoInput
+from app.config import Settings
+from app.providers.base import ImageInput, Message, ModelResult, ToolSpec, VideoInput
+from app.services.costs import log_model_call
 
 STOP_WORDS = {
     "the", "a", "an", "and", "or", "but", "to", "of", "in", "on", "for", "with", "is",
@@ -66,12 +66,16 @@ def _clean_hashtag(value: str) -> str:
     return f"#{cleaned}" if cleaned else ""
 
 
-class MockProvider:
-    """Deterministic, grounded canned responses for offline development and tests."""
+class StubProvider:
+    """Deterministic, grounded responses for the automated test suite.
+
+    This lives under ``tests/`` and is injected through ``set_provider_override``.
+    It is not selectable from the application's environment configuration.
+    """
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.model = "mock-muse-spark"
+        self.model = "test-stub"
 
     async def generate(
         self,
@@ -95,7 +99,7 @@ class MockProvider:
         output_tokens = max(1, len(text) // 4)
         latency_ms = int((time.perf_counter() - started) * 1000)
         log_model_call(
-            provider="mock",
+            provider="test-stub",
             model=self.model,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -113,7 +117,7 @@ class MockProvider:
             cost_usd=0.0,
             latency_ms=latency_ms,
             model=self.model,
-            provider="mock",
+            provider="test-stub",
         )
 
     def _generate_purpose(
@@ -131,7 +135,7 @@ class MockProvider:
             return self._summary(context)
         if purpose == "insights":
             return self._insights(context)
-        return {"message": "Mock provider response", "purpose": purpose}
+        return {"message": "Test stub response", "purpose": purpose}
 
     def _understand(self, context: dict[str, Any]) -> dict[str, Any]:
         input_segments = context.get("segments") or []

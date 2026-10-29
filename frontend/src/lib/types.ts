@@ -240,7 +240,8 @@ export interface Health {
   version: string;
   provider: string;
   model: string;
-  mock_mode: boolean;
+  asr_provider: string;
+  asr_model: string;
   max_budget_usd: number;
 }
 
@@ -248,16 +249,17 @@ export interface SystemInfo {
   version: string;
   environment: string;
   provider: string;
-  mock_mode: boolean;
+  provider_base_url: string;
   model: string;
+  asr_provider: string;
   asr_model: string;
-  use_meta_asr: boolean;
   force_whisper: boolean;
   max_budget_usd: number;
   hackathon_credits_usd: number;
   input_price_per_m: number;
   cached_input_price_per_m: number;
   output_price_per_m: number;
+  asr_usd_per_hour: number;
   max_upload_mb: number;
   max_duration_s: number;
   min_clip_s: number;

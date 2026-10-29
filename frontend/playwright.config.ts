@@ -29,8 +29,6 @@ export default defineConfig({
       reuseExistingServer,
       timeout: 120_000,
       env: {
-        MOCK_MODE: "true",
-        PROVIDER: "mock",
         DATA_DIR: "../data",
       },
     },

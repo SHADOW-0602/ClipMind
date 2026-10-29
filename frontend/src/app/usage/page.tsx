@@ -91,7 +91,7 @@ export default function UsagePage() {
           </>
         }
         title="Every call, accounted for."
-        description="ClipMind meters model tokens and transcription seconds against a hard budget guard. If a run would cross the limit, it stops before the request leaves the machine."
+        description="ClipMind meters model tokens and transcription seconds against a hard budget guard. If a run would cross the limit, it stops before the request is sent."
         actions={
           <Button variant="secondary" onClick={() => void load()} loading={loading}>
             <RefreshCw className="size-3.5" />
@@ -116,8 +116,8 @@ export default function UsagePage() {
                 Budget
               </span>
             </div>
-            <Badge tone={health?.mock_mode ? "lime" : "sky"}>
-              {health?.mock_mode ? "Mock · $0 calls" : "Meta live"}
+            <Badge tone="sky">
+              {health?.provider ? `${health.provider} live` : "Live provider"}
             </Badge>
           </div>
 
@@ -151,9 +151,9 @@ export default function UsagePage() {
               indicatorClassName={budgetShare > 85 ? "bg-danger" : budgetShare > 65 ? "bg-warning" : undefined}
             />
             <p className="mt-2 text-[10px] leading-relaxed text-faint">
-              {health?.mock_mode
-                ? "Mock mode uses deterministic canned outputs, so metered spend stays at zero while the pipeline runs end to end."
-                : `The guard blocks any call that would push spend past ${formatUsd(usage?.budget_usd ?? 0, { precise: false })}.`}
+              The guard blocks any call that would push spend past{" "}
+              {formatUsd(usage?.budget_usd ?? 0, { precise: false })}. Free-tier presets
+              report $0 until you set their list prices.
             </p>
           </div>
         </div>
@@ -175,7 +175,13 @@ export default function UsagePage() {
             icon={<AudioLines className="size-3.5" />}
             label="Transcription"
             value={formatUsd(usage?.asr_cost_usd ?? 0, { precise: true })}
-            detail="Meta Voice ASR"
+            detail={
+              health?.asr_provider === "whisper"
+                ? "Local Whisper"
+                : health?.asr_provider === "meta"
+                  ? "Meta Voice ASR"
+                  : "Remote Whisper"
+            }
           />
           <UsageStat
             icon={<Activity className="size-3.5" />}
@@ -316,13 +322,13 @@ export default function UsagePage() {
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-void/40 px-4 py-3">
         <p className="text-[10.5px] leading-relaxed text-faint">
-          Prices are configurable in <span className="font-mono text-muted">.env</span>. The default
-          guard is intentionally below the hackathon credit balance.
+          Prices are configurable in <span className="font-mono text-muted">.env</span>. Free-tier
+          presets report $0 until you add list prices; the guard is intentionally conservative.
         </p>
         <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.12em] text-faint">
           <span>credits {formatUsd(usage?.credits_remaining_usd ?? 0, { precise: false })}</span>
           <span className="size-1 rounded-full bg-faint" />
-          <span>{health?.model ?? "muse-spark-1.3"}</span>
+          <span>{health?.model ?? "—"}</span>
         </div>
       </div>
     </div>

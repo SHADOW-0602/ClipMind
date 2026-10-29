@@ -50,7 +50,7 @@ export function UploadDropzone({
           onClick={() => onFileChange(null)}
           disabled={disabled}
           aria-label="Remove selected file"
-          className="flex size-8 items-center justify-center rounded-lg text-faint transition-colors hover:bg-white/5 hover:text-mist disabled:opacity-40"
+          className="flex size-11 items-center justify-center rounded-lg text-faint transition-colors hover:bg-white/5 hover:text-mist disabled:opacity-40"
         >
           <X className="size-4" />
         </button>
@@ -61,8 +61,9 @@ export function UploadDropzone({
   return (
     <div
       role="button"
-      tabIndex={0}
+      tabIndex={disabled ? -1 : 0}
       aria-label="Upload a video, audio file, or transcript"
+      aria-disabled={disabled || undefined}
       onClick={() => !disabled && inputRef.current?.click()}
       onKeyDown={(event) => {
         if ((event.key === "Enter" || event.key === " ") && !disabled) {

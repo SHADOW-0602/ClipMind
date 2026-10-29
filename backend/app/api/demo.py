@@ -33,8 +33,8 @@ def create_demo_project(
 ) -> ProjectRead:
     """Create a project from the bundled, transcript-grounded demo recording.
 
-    This keeps the hackathon review path to one click: the short sample has a
-    known transcript manifest, so mock mode can show real word-level captions.
+    The short sample has a known transcript manifest, so the demo can show real
+    word-level captions without spending ASR time on the sample audio.
     """
     sample = BACKEND_DIR / "samples" / "demo-short.mp4"
     if not sample.exists():

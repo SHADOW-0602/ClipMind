@@ -154,11 +154,9 @@ export default function DashboardPage() {
           label="Model spend"
           value={loading ? null : formatUsd(usage?.total_cost_usd ?? 0, { precise: true })}
           detail={
-            health?.mock_mode
-              ? "Mock mode · $0 runtime"
-              : usage
-                ? `${formatUsd(usage.remaining_usd, { precise: false })} budget left`
-                : "Tracked per call"
+            usage
+              ? `${formatUsd(usage.remaining_usd, { precise: false })} budget left`
+              : "Tracked per call"
           }
           accent
         />
@@ -267,8 +265,9 @@ export default function DashboardPage() {
               </ol>
               <div className="mt-5 border-t border-line-soft pt-4">
                 <p className="text-[10.5px] leading-relaxed text-faint">
-                  A complete run in mock mode is deterministic and costs $0. Set{" "}
-                  <span className="font-mono text-muted">MOCK_MODE=false</span> to use Meta models.
+                  ClipMind runs on a live provider. The default Groq preset is free; switch
+                  providers with <span className="font-mono text-muted">PROVIDER</span> in{" "}
+                  <span className="font-mono text-muted">.env</span>.
                 </p>
               </div>
             </div>
@@ -321,7 +320,7 @@ export default function DashboardPage() {
 
       <div className="mt-10 flex items-center justify-between border-t border-line-soft pt-4">
         <p className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-faint">
-          ClipMind {health?.version ?? "0.1.0"} · {health?.provider ?? "mock"} engine
+          ClipMind {health?.version ?? "0.1.0"} · {health?.provider ?? "live"} engine
         </p>
         <Link href="/settings" className="group inline-flex items-center gap-1.5 text-[11px] text-faint hover:text-mist">
           System settings

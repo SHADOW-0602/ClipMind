@@ -5,7 +5,7 @@ Examples:
     python scripts/demo.py --brand "Systems Studio" --n-clips 2
     python scripts/demo.py --no-wait --json
 
-The API server must already be running. In mock mode the run costs $0.
+The API server must already be running. The default Groq preset is free.
 """
 
 from __future__ import annotations
@@ -66,7 +66,7 @@ def main() -> int:
             if not args.json:
                 print(
                     f"ClipMind {info['version']} | provider={info['provider']} "
-                    f"| mock={info['mock_mode']} | budget=${info['max_budget_usd']:.2f}"
+                    f"| budget=${info['max_budget_usd']:.2f}"
                 )
 
             brand = None

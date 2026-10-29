@@ -13,7 +13,7 @@ from .api import brand, clips, demo, export, insights, jobs, media, projects, up
 from .config import get_settings
 from .db import init_db
 from .pipeline.orchestrator import job_service
-from .providers import close_provider
+from .providers import close_provider, get_provider
 from .utils.media import require_ffmpeg
 
 settings = get_settings()
@@ -33,12 +33,17 @@ async def lifespan(_app: FastAPI):
         logger.info("FFmpeg is available")
     except Exception as exc:  # noqa: BLE001
         logger.warning("FFmpeg check failed: %s", exc)
+    try:
+        get_provider()
+    except Exception as exc:  # noqa: BLE001 - fail fast on a missing/invalid provider key
+        logger.error("Provider configuration is invalid: %s", exc)
+        raise
     await job_service.start()
     logger.info(
-        "ClipMind ready — provider=%s model=%s mock_mode=%s",
-        settings.effective_provider,
-        settings.meta_model if settings.effective_provider == "meta" else "mock-muse-spark",
-        settings.mock_mode,
+        "ClipMind ready — provider=%s model=%s asr=%s",
+        settings.provider,
+        settings.active_model,
+        settings.effective_asr_provider,
     )
     try:
         yield
@@ -114,9 +119,10 @@ def health() -> dict:
         "status": "ok",
         "app": settings.app_name,
         "version": settings.app_version,
-        "provider": settings.effective_provider,
-        "model": settings.meta_model if settings.effective_provider == "meta" else "mock-muse-spark",
-        "mock_mode": settings.mock_mode,
+        "provider": settings.provider,
+        "model": settings.active_model,
+        "asr_provider": settings.effective_asr_provider,
+        "asr_model": settings.active_asr_model,
         "max_budget_usd": settings.max_budget_usd,
     }
 
@@ -127,17 +133,18 @@ def system_info() -> dict:
     return {
         "version": settings.app_version,
         "environment": settings.environment,
-        "provider": settings.effective_provider,
-        "mock_mode": settings.mock_mode,
-        "model": settings.meta_model if settings.effective_provider == "meta" else "mock-muse-spark",
-        "asr_model": settings.meta_asr_model,
-        "use_meta_asr": settings.use_meta_asr,
+        "provider": settings.provider,
+        "provider_base_url": settings.provider_base_url,
+        "model": settings.active_model,
+        "asr_provider": settings.effective_asr_provider,
+        "asr_model": settings.active_asr_model,
         "force_whisper": settings.force_whisper,
         "max_budget_usd": settings.max_budget_usd,
         "hackathon_credits_usd": settings.hackathon_credits_usd,
-        "input_price_per_m": settings.meta_input_price_per_m,
-        "cached_input_price_per_m": settings.meta_cached_input_price_per_m,
-        "output_price_per_m": settings.meta_output_price_per_m,
+        "input_price_per_m": settings.active_input_price_per_m,
+        "cached_input_price_per_m": settings.active_cached_input_price_per_m,
+        "output_price_per_m": settings.active_output_price_per_m,
+        "asr_usd_per_hour": settings.active_asr_usd_per_hour,
         "max_upload_mb": settings.max_upload_mb,
         "max_duration_s": settings.max_duration_s,
         "min_clip_s": settings.min_clip_s,
