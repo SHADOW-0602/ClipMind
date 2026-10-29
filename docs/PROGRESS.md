@@ -1,8 +1,8 @@
 # Progress Log
 
-ClipMind was built from an empty repository in nine phases. Each phase ended with a runnable slice and a check. The latest verification was on **2026-10-29** after the multi-provider refactor: backend tests, Ruff, compileall, frontend typecheck, lint, and the production build passed locally. The acceptance eval passed 81/81 on the host and through Docker Compose, and Playwright passed 3/3 through the Compose UI, all against a local OpenAI-compatible stub.
+ClipMind was built from an empty repository in nine phases. Each phase ended with a runnable slice and a check. The latest verification was on **2026-10-29** after the multi-provider refactor: backend tests, Ruff, compileall, frontend typecheck, lint, and the production build passed locally. The acceptance eval passed 81/81 on live Groq and against a local OpenAI-compatible stub on the host and through Docker Compose, and Playwright passed 3/3 through the Compose UI with the stub.
 
-**Status:** complete and demo-ready on a live provider. The default Groq preset is free. Docker Compose was rebuilt after the provider refactor and verified with a local stub; live vendor behavior remains unverified and is explicit in [EVALS.md](EVALS.md) and [SUBMISSION.md](SUBMISSION.md).
+**Status:** complete and demo-ready on a live provider. The default Groq preset is free and was verified end to end with a real key: 3 clips, 3 rendered, 69 model calls, $0.0000, and 81/81 acceptance checks. Gemini's OpenAI-compatible chat was validated with structured JSON. Meta remains implemented but not live-tested; the remaining gaps are explicit in [EVALS.md](EVALS.md) and [SUBMISSION.md](SUBMISSION.md).
 
 ## Phase summary
 
@@ -147,7 +147,7 @@ The backend phases landed in one cohesive commit because they share the same mod
 
 **Goal:** make the repository reviewable without a guided tour.
 
-- Backend tests now cover 21 cases, including stage status assertions, demo creation, system config, CORS env parsing, sample media, transcript utilities, provider presets, and the OpenAI-compatible adapter.
+- Backend tests now cover 22 cases, including stage status assertions, demo creation, system config, CORS env parsing, sample media, transcript utilities, provider presets, and the OpenAI-compatible adapter.
 - Playwright smoke test added with a reusable webServer config and CI-friendly backend command override.
 - Acceptance eval added: 81 checks across project, transcript, clips, summary, insights, export, and usage.
 - API-driven demo, seed, and eval scripts so they work against local, Docker, or deployed instances.
@@ -156,13 +156,18 @@ The backend phases landed in one cohesive commit because they share the same mod
 - Dashboard and clip-studio screenshots captured from a completed demo.
 - Runtime data cleaned down to completed demos; brands seeded for screenshots.
 
-**Verification:** 21 backend tests passed, frontend typecheck/lint/build passed, and Ruff/compileall are clean. The demo pipeline and the 81-check acceptance eval passed against a local OpenAI-compatible stub server over HTTP, and the Compose stack passed the eval 81/81 plus Playwright 3/3 through the containerized UI. A real vendor run still requires a live provider key.
+**Verification:** 22 backend tests passed, frontend typecheck/lint/build passed, and Ruff/compileall are clean. The live Groq demo completed with 3 clips, 3 rendered, 69 model calls, and $0.0000, and the acceptance eval passed 81/81. The same pipeline passed against a local OpenAI-compatible stub server over HTTP, and the Compose stack passed the eval 81/81 plus Playwright 3/3 through the containerized UI.
+
+## Post-refactor fixes
+
+- Groq's verbose transcription returns `segments: null` with top-level `words`; the parser now assigns every word to the nearest segment instead of dropping words outside segment bounds. Verified with all 213 word timings on the bundled demo.
+- The acceptance eval now checks `pipeline.completed` for `--project-id` runs and forces UTF-8 console output so non-breaking hyphens do not crash report printing on Windows.
 
 ## Verification matrix
 
 | Area | Command | Latest result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 21 passed |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 22 passed |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | clean |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | clean |
 | Frontend types | `cd frontend && npm run typecheck` | clean |
@@ -170,8 +175,8 @@ The backend phases landed in one cohesive commit because they share the same mod
 | Frontend build | `cd frontend && npm run build` | success, 8 routes |
 | Docker Compose | `docker compose up -d --build` | verified: backend healthy, frontend 200 |
 | Browser smoke | `cd frontend && npm run test:e2e` | 3 passed through the containerized UI |
-| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py` | 81/81 against a local HTTP stub (host and Compose); live vendor pending |
-| Demo CLI | `.\.venv\Scripts\python.exe scripts\demo.py` | 3 clips, 3 rendered against a local HTTP stub |
+| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py` | 81/81 on live Groq and against a local HTTP stub (host and Compose) |
+| Demo CLI | `.\.venv\Scripts\python.exe scripts\demo.py` | 3 clips, 3 rendered, 69 calls, $0.0000 on live Groq; same result against a local HTTP stub |
 
 ## Deviations from the original plan
 

@@ -131,14 +131,14 @@ This is a lightweight architecture decision record. Each entry states the decisi
 
 ## Verification list (`TODO(verify)`)
 
-These items are implemented from current provider docs but were not smoke-tested with a real key in this repository:
+Groq and Gemini were exercised with real keys on 2026-10-29. The remaining gaps:
 
-- End-to-end OpenAI-compatible `POST /chat/completions` call, including JSON-schema acceptance and the response envelope across presets.
+- OpenAI-compatible `POST /chat/completions` with structured JSON: verified live on Groq (`openai/gpt-oss-120b`) and Gemini (`gemini-2.5-flash`). Other presets remain unverified.
 - End-to-end `POST /responses` call with `muse-spark-1.3` for `PROVIDER=meta`, including the exact `text.format` acceptance and response envelope.
-- Whisper-compatible `/audio/transcriptions` request/response shape, chunk boundary behavior, and word timestamp fidelity near 10-minute cuts.
+- Whisper-compatible `/audio/transcriptions`: verified on Groq with `whisper-large-v3-turbo` (100s sample, 29 segments, 213 words, `segments: null` plus top-level `words`). Chunk boundary behavior near 10-minute cuts and other gateways remain unverified.
 - Muse Voice Transcribe request/response shape, chunk boundary behavior, and word timestamp fidelity near 10-minute cuts.
 - Whether large video inputs require the Files API instead of inline data URLs (the main path uses transcripts and still frames; a TODO is in `providers/meta.py`).
-- Current pricing and model availability at run time. Free presets report `$0`; paid presets ship list prices and should be checked before a paid run.
-- Rate-limit headers and retry-after behavior under sustained load.
+- Current pricing and model availability at run time. Groq's free tier reported `$0`; paid presets ship list prices and should be checked before a paid run.
+- Rate-limit headers and retry-after behavior under sustained load. A single-request Groq header was observed; sustained throttling was not tested.
 
 Search the repository for `TODO(verify)` before claiming live-provider coverage.

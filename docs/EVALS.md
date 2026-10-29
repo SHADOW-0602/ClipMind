@@ -2,23 +2,25 @@
 
 ClipMind is checked at three levels: deterministic backend tests, a browser smoke test of the real UI, and an end-to-end acceptance eval that inspects the artifacts produced by the pipeline.
 
-The latest local verification was on **2026-10-29** after the multi-provider refactor. Backend tests, Ruff, compileall, frontend typecheck, lint, and the production build passed. The acceptance eval passed **81/81** against a local OpenAI-compatible stub server over real HTTP, and the Playwright suite passed **3/3** through the containerized UI. No vendor key was used.
+The latest local verification was on **2026-10-29** after the multi-provider refactor. Backend tests, Ruff, compileall, frontend typecheck, lint, and the production build passed. The acceptance eval passed **81/81** against a live Groq free-tier key and against a local OpenAI-compatible stub server over real HTTP, and the Playwright suite passed **3/3** through the containerized UI.
 
 ## Latest results
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **21 passed** in 78.28s |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **22 passed** in 89.58s |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | **clean** |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | **clean** |
 | Frontend types | `cd frontend && npm run typecheck` | **clean** |
 | Frontend lint | `cd frontend && npm run lint` | **clean** |
 | Frontend build | `cd frontend && npm run build` | **success**, 8 app routes |
 | Browser smoke | `cd frontend && npm run test:e2e` | **3 passed** in 2.2m through the containerized UI |
-| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py --platforms tiktok,linkedin,youtube --min-clip-s 12 --max-clip-s 35` | **81/81** against a local OpenAI-compatible stub (host and Compose); live vendor run pending |
+| Acceptance eval | `.\.venv\Scripts\python.exe scripts\eval.py --platforms tiktok,linkedin,youtube --min-clip-s 12 --max-clip-s 35` | **81/81** on live Groq (`openai/gpt-oss-120b` + `whisper-large-v3-turbo`) and against a local stub (host and Compose) |
 | Docker Compose | `docker compose up -d --build` | **verified**: backend healthy, frontend HTTP 200, eval 81/81 |
 
 The HTTP smoke test ran the real `OpenAICompatibleProvider` against a local server implementing `/v1/chat/completions` and `/v1/audio/transcriptions`. It exercised startup, request construction, schema validation, the full pipeline, FFmpeg rendering, export, and usage accounting without a vendor key. The Docker run used the same stub through `host.docker.internal`, so it also covered the container build and service wiring. It does not prove vendor-specific request or response behavior.
+
+A separate live Groq run covered that gap on 2026-10-29. The demo completed with **3 clips, 3 rendered, 69 model calls, and $0.0000**, and the acceptance eval passed **81/81**. Groq's transcription response returns `segments: null` with top-level `words`; the parser preserves all 213 word timings in 29 segments. A Gemini key was also validated against the OpenAI-compatible chat endpoint with structured JSON output. Keys are supplied through `.env` and are never committed.
 
 The tests inject a deterministic `StubProvider` through `set_provider_override()`. That hook lives under `backend/tests/` and is not selectable from the application environment, so the product has no mock mode.
 
@@ -40,7 +42,7 @@ The clip area is the largest because it runs the same platform checks for every 
 
 ### Fresh run vs. stored project
 
-A fresh eval includes `pipeline.completed` and reports **81** checks. When `--project-id` is supplied, the eval skips project creation and that check, so a stored project reports **80**. Both are expected.
+A fresh eval includes `pipeline.completed` and reports **81** checks. When `--project-id` is supplied, the eval skips project creation but checks the stored project's completion status, so both paths report **81**.
 
 ## How to run it
 

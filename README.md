@@ -112,7 +112,7 @@ docker compose up --build
 - API: http://localhost:8000
 - API docs: http://localhost:8000/docs
 
-The backend container includes FFmpeg and the bundled demo samples, and stores runtime data in the `clipmind-data` volume. Compose reads the repository-root `.env`, so set `MODEL_API_KEY` there before starting. The stack was rebuilt after the multi-provider refactor and verified with a local OpenAI-compatible stub: backend healthy, frontend HTTP 200, acceptance eval 81/81, and Playwright 3/3 through the containerized UI. A run with a real vendor key is still pending. To reset everything:
+The backend container includes FFmpeg and the bundled demo samples, and stores runtime data in the `clipmind-data` volume. Compose reads the repository-root `.env`, so set `MODEL_API_KEY` there before starting. The stack was rebuilt after the multi-provider refactor and verified with a local OpenAI-compatible stub: backend healthy, frontend HTTP 200, acceptance eval 81/81, and Playwright 3/3 through the containerized UI. The host was also verified against live Groq: demo 3 clips/3 rendered/69 calls, acceptance eval 81/81. The container has not yet been rerun against a live vendor key. To reset everything:
 
 ```bash
 docker compose down -v

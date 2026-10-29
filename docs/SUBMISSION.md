@@ -28,9 +28,9 @@ Creators do not lack content; they lack a trustworthy way to find the publishabl
 | Brand profiles and banned words | Done | `api/brand.py`, `api/clips.py` |
 | Cost tracking and budget guard | Done | `services/costs.py`, `providers/openai_compatible.py` |
 | Demo data and one-click demo | Done | `backend/samples/`, `POST /api/demo-project` |
-| Backend tests | Done, 21 passed | `backend/tests/` |
+| Backend tests | Done, 22 passed | `backend/tests/` |
 | Browser smoke test | Done, 3 passed through the Compose UI (local stub) | `frontend/e2e/smoke.spec.ts` |
-| Acceptance eval | Implemented; 81/81 against a local HTTP stub, live vendor pending | `scripts/eval.py`, [EVALS.md](EVALS.md) |
+| Acceptance eval | Done; 81/81 on live Groq and against a local HTTP stub | `scripts/eval.py`, [EVALS.md](EVALS.md) |
 | Docker Compose | Rebuilt and verified: backend healthy, frontend HTTP 200 | `docker-compose.yml` |
 | Makefile | Included | `Makefile` |
 | README | Done | `README.md` |
@@ -81,14 +81,14 @@ Latest local verification on **2026-10-29** after the provider refactor:
 
 | Evidence | Result |
 | --- | --- |
-| Backend tests | 21 passed |
+| Backend tests | 22 passed |
 | Ruff / compileall | clean |
 | Frontend typecheck / lint | clean |
 | Production build | success, 8 app routes |
-| Live provider run | HTTP adapter exercised against a local stub on the host and in Compose; no vendor key |
+| Live provider run | Groq free tier: 3 clips, 3 rendered, 69 calls, $0.0000; Gemini chat validated with structured JSON |
 | Docker Compose | rebuilt and verified: backend healthy, frontend HTTP 200 |
 | Browser smoke | 3 passed through the containerized UI (local stub) |
-| Acceptance eval | 81/81 against a local OpenAI-compatible stub (host and Compose); live vendor run pending |
+| Acceptance eval | 81/81 on live Groq and against a local OpenAI-compatible stub (host and Compose) |
 
 The acceptance eval writes `data/evals/latest.json`; runtime data is gitignored. The check categories and limitations are in [EVALS.md](EVALS.md).
 
@@ -131,14 +131,14 @@ The acceptance eval writes `data/evals/latest.json`; runtime data is gitignored.
 - **Demo scale is honest.** SQLite, an in-process queue, and a single node. The README and decisions doc say so.
 - **Production path is clear.** Postgres, a durable queue, object storage, auth, per-user quotas, and a render worker pool. The pipeline stages are already checkpointed and separable.
 - **Cost controls are real.** A paid run cannot silently exceed `MAX_BUDGET_USD`; the call is refused with a readable error.
-- **No overclaiming.** The adapter was exercised over HTTP against a local stub, but the live vendor path was not smoke-tested with a real key here, and that limitation is called out below.
+- **No overclaiming.** Groq was exercised live end to end and Gemini at the adapter level; the remaining vendor and scale gaps are called out below.
 
 ## What is not verified
 
 Be explicit in the submission. These are not hidden:
 
-1. **Live vendors.** No real vendor key was available while this repository was built. The OpenAI-compatible adapter passed an end-to-end HTTP smoke test against a local stub, but vendor request/response envelopes, ASR word timings, Files API behavior for large video, rate-limit headers, and current prices have not been exercised against a live service. See the `TODO(verify)` list in [DECISIONS.md](DECISIONS.md).
-2. **Docker scope.** Compose was rebuilt and verified after the provider refactor with the local stub: backend healthy, frontend HTTP 200, eval 81/81, and Playwright 3/3. It still needs one run with a real vendor key. This covers one Windows host with Linux containers, not Kubernetes, multi-host orchestration, image scanning, or production resource limits.
+1. **Other vendors and large media.** Groq's free tier was exercised end to end: demo, Whisper ASR, and 81/81 acceptance checks. Gemini's OpenAI-compatible chat was validated with structured JSON. Meta's native Responses provider, Gemini transcription (its preset uses local Whisper), Files API behavior for large video, sustained rate-limit behavior, and current paid prices remain unexercised. See the `TODO(verify)` list in [DECISIONS.md](DECISIONS.md).
+2. **Docker scope.** Compose was rebuilt and verified after the provider refactor with the local stub: backend healthy, frontend HTTP 200, eval 81/81, and Playwright 3/3. The live Groq run was on the host. This covers one Windows host with Linux containers, not Kubernetes, multi-host orchestration, image scanning, or production resource limits.
 3. **Arbitrary media transcription.** The bundled demo is fully grounded by its manifest. Arbitrary uploads require the configured remote ASR to succeed or local `faster-whisper` to be installed.
 4. **Engagement accuracy.** Scores are structural estimates, not measured platform performance.
 5. **Scale and security.** No load testing, no authentication, no multi-tenancy, no fuzzing.
