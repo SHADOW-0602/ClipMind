@@ -143,6 +143,32 @@ def test_vision_can_be_disabled_per_provider() -> None:
     assert result.text == "done"
 
 
+def test_reasoning_effort_is_sent_when_configured() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "done"}}], "usage": {}},
+        )
+
+    async def run():
+        async with _client(handler) as client:
+            provider = OpenAICompatibleProvider(
+                _settings(llm_reasoning_effort="medium"), client=client
+            )
+            return await provider.generate(
+                system="Analyze.",
+                messages=[Message(role="user", content="Say done.")],
+                cache_key="test:reasoning-effort",
+            )
+
+    asyncio.run(run())
+
+    assert captured["body"]["reasoning_effort"] == "medium"
+
+
 def test_openai_transcriber_parses_segments_and_words(tmp_path: Path) -> None:
     captured: dict = {}
 

@@ -14,12 +14,15 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 # a different model without changing code.
 PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
     # Free tier: OpenAI-compatible chat + Whisper transcription with one key.
+    # GPT-OSS 120B replaced Llama 3.3 70B on Groq's free tier in August 2026.
     "groq": {
         "llm_base_url": "https://api.groq.com/openai/v1",
-        "llm_model": "llama-3.3-70b-versatile",
+        "llm_model": "openai/gpt-oss-120b",
         "llm_asr_model": "whisper-large-v3-turbo",
         "llm_vision": False,
         "llm_json_mode": "auto",
+        "llm_max_tokens_field": "max_completion_tokens",
+        "llm_reasoning_effort": "low",
         "asr_provider": "openai_compatible",
         "llm_input_price_per_m": 0.0,
         "llm_cached_input_price_per_m": 0.0,
@@ -237,12 +240,13 @@ class Settings(BaseSettings):
     # --- OpenAI-compatible Chat Completions provider -------------------------
     # Presets fill these unless the matching environment variable is set.
     llm_base_url: str = "https://api.groq.com/openai/v1"
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_model: str = "openai/gpt-oss-120b"
     llm_asr_model: str = "whisper-large-v3-turbo"
     llm_timeout_s: float = 120.0
     llm_max_retries: int = 4
     llm_json_mode: Literal["auto", "json_schema", "json_object", "none"] = "auto"
     llm_max_tokens_field: Literal["max_tokens", "max_completion_tokens"] = "max_tokens"
+    llm_reasoning_effort: str = ""
     llm_temperature: float | None = None
     llm_vision: bool = True
 

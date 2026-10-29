@@ -68,7 +68,7 @@ npm run dev
 
 | Preset | Text model | Transcription | Cost |
 | --- | --- | --- | --- |
-| `groq` (default) | `llama-3.3-70b-versatile` | Groq Whisper | Free tier |
+| `groq` (default) | `openai/gpt-oss-120b` | Groq Whisper | Free tier |
 | `gemini` | `gemini-2.5-flash` | local Whisper | Free tier |
 | `openrouter` | `meta-llama/llama-3.3-70b-instruct:free` | local Whisper | Free models |
 | `ollama` | `llama3.2` | local Whisper | Local |
@@ -207,6 +207,7 @@ Copy `.env.example` to `.env`. The most important settings:
 | `LLM_BASE_URL` | preset | OpenAI-compatible endpoint |
 | `LLM_MODEL` | preset | Reasoning, selection, copy, summary, insights |
 | `LLM_ASR_MODEL` | preset | Remote speech-to-text model |
+| `LLM_REASONING_EFFORT` | preset | `low`, `medium`, or `high`; sent only when set |
 | `ASR_PROVIDER` | `auto` | `auto`, `openai_compatible`, `meta`, or `whisper` |
 | `MAX_BUDGET_USD` | `100` | Hard spend ceiling |
 | `DATA_DIR` | `./data` | Uploads, processed media, renders, cache, SQLite |

@@ -11,7 +11,7 @@ ClipMind was built from an empty repository for the Meta Model API hackathon. No
 - **OpenAI-compatible Chat Completions and Audio APIs** — https://platform.openai.com/docs/api-reference/chat and https://platform.openai.com/docs/api-reference/audio
   - The generic adapter used by the Groq, Gemini, OpenRouter, Ollama, LM Studio, Mistral, Cerebras, DeepSeek, Together, OpenAI, xAI, Fireworks, and Perplexity presets. It uses `response_format` JSON schema with a `json_object` fallback, `/audio/transcriptions` for ASR, and provider-specific base URLs.
 - **Groq free tier** — https://console.groq.com/docs
-  - Default preset: `llama-3.3-70b-versatile` for text and `whisper-large-v3-turbo` for transcription.
+  - Default preset: `openai/gpt-oss-120b` for text and `whisper-large-v3-turbo` for transcription.
 - **FastAPI** — https://fastapi.tiangolo.com/
   - Dependency injection, `StreamingResponse` for SSE, multipart uploads, lifespan hooks, exception handling.
 - **SQLModel / SQLAlchemy** — https://sqlmodel.tiangolo.com/ and https://docs.sqlalchemy.org/

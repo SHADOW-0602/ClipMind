@@ -6,7 +6,7 @@ This is a lightweight architecture decision record. Each entry states the decisi
 
 **Decision:** ClipMind always runs against a live provider. `PROVIDER` selects a preset (`groq`, `gemini`, `openrouter`, `ollama`, `lmstudio`, `mistral`, `cerebras`, `deepseek`, `together`, `openai`, `openai_compatible`, `xai`, `fireworks`, `perplexity`, `custom`, or `meta`). Most presets use one OpenAI-compatible Chat Completions adapter; `meta` uses the native Responses API.
 
-**Why:** the product must be reviewable end to end without a vendor lock-in or a separate demo path. A preset fills endpoint, model, ASR route, and prices, while explicit `LLM_*`/`ASR_*` variables still win. The default Groq preset is free.
+**Why:** the product must be reviewable end to end without a vendor lock-in or a separate demo path. A preset fills endpoint, model, ASR route, and prices, while explicit `LLM_*`/`ASR_*` variables still win. The default Groq preset is free. It uses `openai/gpt-oss-120b`, Groq's free-tier replacement for the retired Llama 3.3 70B, with `max_completion_tokens` and `reasoning_effort=low` so reasoning stays inside the pipeline's output budgets.
 
 **Cost:** every run consumes a provider quota. A missing key fails startup rather than silently falling back to fake output. Tests inject a deterministic `StubProvider` through `set_provider_override()`; that hook is test-only and not selectable from the application environment.
 

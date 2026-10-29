@@ -147,7 +147,7 @@ The backend phases landed in one cohesive commit because they share the same mod
 
 **Goal:** make the repository reviewable without a guided tour.
 
-- Backend tests now cover 20 cases, including stage status assertions, demo creation, system config, CORS env parsing, sample media, transcript utilities, provider presets, and the OpenAI-compatible adapter.
+- Backend tests now cover 21 cases, including stage status assertions, demo creation, system config, CORS env parsing, sample media, transcript utilities, provider presets, and the OpenAI-compatible adapter.
 - Playwright smoke test added with a reusable webServer config and CI-friendly backend command override.
 - Acceptance eval added: 81 checks across project, transcript, clips, summary, insights, export, and usage.
 - API-driven demo, seed, and eval scripts so they work against local, Docker, or deployed instances.
@@ -156,13 +156,13 @@ The backend phases landed in one cohesive commit because they share the same mod
 - Dashboard and clip-studio screenshots captured from a completed demo.
 - Runtime data cleaned down to completed demos; brands seeded for screenshots.
 
-**Verification:** 20 backend tests passed, frontend typecheck/lint/build passed, and Ruff/compileall are clean. The demo pipeline and the 81-check acceptance eval passed against a local OpenAI-compatible stub server over HTTP, and the Compose stack passed the eval 81/81 plus Playwright 3/3 through the containerized UI. A real vendor run still requires a live provider key.
+**Verification:** 21 backend tests passed, frontend typecheck/lint/build passed, and Ruff/compileall are clean. The demo pipeline and the 81-check acceptance eval passed against a local OpenAI-compatible stub server over HTTP, and the Compose stack passed the eval 81/81 plus Playwright 3/3 through the containerized UI. A real vendor run still requires a live provider key.
 
 ## Verification matrix
 
 | Area | Command | Latest result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 20 passed |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | 21 passed |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | clean |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | clean |
 | Frontend types | `cd frontend && npm run typecheck` | clean |

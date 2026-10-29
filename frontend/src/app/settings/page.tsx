@@ -62,7 +62,7 @@ export default function SettingsPage() {
   }, [load]);
 
   const liveEnv =
-    "PROVIDER=groq\nMODEL_API_KEY=your_key_here\n# Optional overrides\nLLM_MODEL=llama-3.3-70b-versatile\nLLM_ASR_MODEL=whisper-large-v3-turbo";
+    "PROVIDER=groq\nMODEL_API_KEY=your_key_here\n# Optional overrides\nLLM_MODEL=openai/gpt-oss-120b\nLLM_ASR_MODEL=whisper-large-v3-turbo";
   const runBackend = "cd backend\nuvicorn app.main:app --reload --port 8000";
   const runFrontend = "cd frontend\nnpm run dev";
 

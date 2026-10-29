@@ -28,10 +28,10 @@ Creators do not lack content; they lack a trustworthy way to find the publishabl
 | Brand profiles and banned words | Done | `api/brand.py`, `api/clips.py` |
 | Cost tracking and budget guard | Done | `services/costs.py`, `providers/openai_compatible.py` |
 | Demo data and one-click demo | Done | `backend/samples/`, `POST /api/demo-project` |
-| Backend tests | Done, 20 passed | `backend/tests/` |
-| Browser smoke test | Implemented, not re-run after provider refactor | `frontend/e2e/smoke.spec.ts` |
+| Backend tests | Done, 21 passed | `backend/tests/` |
+| Browser smoke test | Done, 3 passed through the Compose UI (local stub) | `frontend/e2e/smoke.spec.ts` |
 | Acceptance eval | Implemented; 81/81 against a local HTTP stub, live vendor pending | `scripts/eval.py`, [EVALS.md](EVALS.md) |
-| Docker Compose | Configured, not re-verified after provider refactor | `docker-compose.yml` |
+| Docker Compose | Rebuilt and verified: backend healthy, frontend HTTP 200 | `docker-compose.yml` |
 | Makefile | Included | `Makefile` |
 | README | Done | `README.md` |
 | Architecture / API / decisions / credits | Done | `docs/` |
@@ -81,7 +81,7 @@ Latest local verification on **2026-10-29** after the provider refactor:
 
 | Evidence | Result |
 | --- | --- |
-| Backend tests | 20 passed |
+| Backend tests | 21 passed |
 | Ruff / compileall | clean |
 | Frontend typecheck / lint | clean |
 | Production build | success, 8 app routes |

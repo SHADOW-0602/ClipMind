@@ -8,7 +8,7 @@ The latest local verification was on **2026-10-29** after the multi-provider ref
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **20 passed** in 77.64s |
+| Backend tests | `cd backend && ..\.venv\Scripts\python.exe -m pytest -q` | **21 passed** in 78.28s |
 | Backend lint | `cd backend && ..\.venv\Scripts\python.exe -m ruff check app tests ..\scripts` | **clean** |
 | Python compile | `cd backend && ..\.venv\Scripts\python.exe -m compileall -q app tests ..\scripts` | **clean** |
 | Frontend types | `cd frontend && npm run typecheck` | **clean** |

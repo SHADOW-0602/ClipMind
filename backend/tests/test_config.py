@@ -41,9 +41,11 @@ def test_groq_is_the_free_default(monkeypatch) -> None:
     assert settings.provider == "groq"
     assert settings.effective_provider == "openai_compatible"
     assert settings.llm_base_url == "https://api.groq.com/openai/v1"
-    assert settings.active_model == "llama-3.3-70b-versatile"
+    assert settings.active_model == "openai/gpt-oss-120b"
     assert settings.effective_asr_provider == "openai_compatible"
     assert settings.active_asr_model == "whisper-large-v3-turbo"
+    assert settings.llm_max_tokens_field == "max_completion_tokens"
+    assert settings.llm_reasoning_effort == "low"
     assert settings.active_input_price_per_m == 0.0
 
 

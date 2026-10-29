@@ -171,6 +171,7 @@ class OpenAICompatibleProvider:
                 "provider": self.provider,
                 "model": self.model,
                 "base_url": str(self.settings.llm_base_url),
+                "reasoning_effort": self.settings.llm_reasoning_effort,
                 "images": image_fingerprints,
                 "video": video.path.stat().st_size if video and video.path else None,
             },
@@ -266,6 +267,8 @@ class OpenAICompatibleProvider:
         }
         if self.settings.llm_temperature is not None:
             body["temperature"] = self.settings.llm_temperature
+        if self.settings.llm_reasoning_effort:
+            body["reasoning_effort"] = self.settings.llm_reasoning_effort
         tool_payload = self._tool_payload(tools)
         if tool_payload:
             body["tools"] = tool_payload
