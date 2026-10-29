@@ -40,6 +40,15 @@ def _distribute_words(text: str, start: float, end: float) -> list[dict]:
     return result
 
 
+def _word_segment_distance(segment: dict, word: dict) -> tuple[float, float]:
+    """Rank segments for a word: most overlap first, then nearest boundary."""
+    overlap = min(segment["end"], word["end"]) - max(segment["start"], word["start"])
+    if overlap > 0:
+        return (0.0, -overlap)
+    midpoint = (word["start"] + word["end"]) / 2
+    return (1.0, min(abs(midpoint - segment["start"]), abs(midpoint - segment["end"])))
+
+
 class MetaTranscriber:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -310,60 +319,62 @@ class OpenAICompatibleTranscriber:
         )
         raw_segments = payload.get("segments") or []
         raw_words = payload.get("words") or []
+        words: list[dict] = []
+        for word in raw_words:
+            token = str(word.get("word") or "").strip()
+            if not token:
+                continue
+            words.append(
+                {
+                    "start": round(float(word.get("start") or 0), 3),
+                    "end": round(float(word.get("end") or 0), 3),
+                    "word": token,
+                }
+            )
+        words.sort(key=lambda item: (item["start"], item["end"]))
+
         segments: list[dict] = []
         for raw in raw_segments:
             text = str(raw.get("text") or "").strip()
             if not text:
                 continue
-            start = float(raw.get("start") or 0)
-            end = float(raw.get("end") or 0)
-            words = []
-            for word in raw_words:
-                word_start = float(word.get("start") or 0)
-                word_end = float(word.get("end") or 0)
-                if word_start >= start - 0.05 and word_end <= end + 0.05:
-                    token = str(word.get("word") or "").strip()
-                    if token:
-                        words.append(
-                            {
-                                "start": round(word_start, 3),
-                                "end": round(word_end, 3),
-                                "word": token,
-                            }
-                        )
-            if not words:
-                words = _distribute_words(text, start, end)
             segments.append(
                 {
-                    "start": round(start, 3),
-                    "end": round(end, 3),
+                    "start": round(float(raw.get("start") or 0), 3),
+                    "end": round(float(raw.get("end") or 0), 3),
                     "text": text,
                     "speaker": raw.get("speaker"),
-                    "words": words,
+                    "words": [],
                 }
             )
-        if not segments:
+
+        if segments:
+            # Groq and some other gateways return segment boundaries that do
+            # not fully cover their word timings. Assign each word to the
+            # segment it overlaps most, falling back to the nearest segment,
+            # so boundary words are not silently dropped.
+            for word in words:
+                best = min(
+                    range(len(segments)),
+                    key=lambda index: _word_segment_distance(segments[index], word),
+                )
+                segments[best]["words"].append(word)
+            for segment in segments:
+                segment["words"].sort(key=lambda item: (item["start"], item["end"]))
+                if not segment["words"]:
+                    segment["words"] = _distribute_words(
+                        segment["text"], segment["start"], segment["end"]
+                    )
+        else:
             text = str(payload.get("text") or payload.get("transcript") or "").strip()
             if text:
-                top_level_words = []
-                for word in raw_words:
-                    token = str(word.get("word") or "").strip()
-                    if not token:
-                        continue
-                    top_level_words.append(
-                        {
-                            "start": round(float(word.get("start") or 0), 3),
-                            "end": round(float(word.get("end") or 0), 3),
-                            "word": token,
-                        }
-                    )
                 segments = [
                     {
                         "start": 0.0,
                         "end": round(duration_s, 3),
                         "text": text,
                         "speaker": None,
-                        "words": top_level_words or _distribute_words(text, 0, duration_s),
+                        "words": words or _distribute_words(text, 0, duration_s),
                     }
                 ]
         return {

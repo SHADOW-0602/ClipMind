@@ -203,3 +203,36 @@ def test_openai_transcriber_parses_segments_and_words(tmp_path: Path) -> None:
     assert result["provider"] == "groq-asr"
     assert result["text"] == "Hello world"
     assert result["segments"][0]["words"][1]["word"] == "world"
+
+
+def test_openai_transcriber_keeps_words_outside_segment_bounds(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "text": "One two three",
+                "language": "en",
+                "segments": [
+                    {"start": 0.5, "end": 1.0, "text": "One two"},
+                    {"start": 1.0, "end": 2.0, "text": "three"},
+                ],
+                "words": [
+                    {"start": 0.0, "end": 0.4, "word": "One"},
+                    {"start": 0.6, "end": 0.8, "word": "two"},
+                    {"start": 2.2, "end": 2.4, "word": "three"},
+                ],
+            },
+        )
+
+    audio = tmp_path / "audio.wav"
+    audio.write_bytes(b"RIFF-test")
+
+    async def run():
+        async with _client(handler) as client:
+            transcriber = OpenAICompatibleTranscriber(_settings(), client=client)
+            return await transcriber.transcribe(audio, 2.4, tmp_path)
+
+    result = asyncio.run(run())
+
+    words = [word["word"] for segment in result["segments"] for word in segment["words"]]
+    assert words == ["One", "two", "three"]

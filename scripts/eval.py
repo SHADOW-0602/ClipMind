@@ -18,6 +18,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -415,6 +416,11 @@ def evaluate(client: httpx.Client, project_id: str, args: argparse.Namespace, re
 
 
 def main() -> int:
+    # Windows consoles default to cp1252, but model output can contain
+    # characters such as non-breaking hyphens. Never let report printing fail.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     args = parse_args()
     platforms = [item.strip().lower() for item in args.platforms.split(",") if item.strip()]
     report = Report()
@@ -428,6 +434,9 @@ def main() -> int:
 
             if args.project_id:
                 project_id = args.project_id
+                existing = get_project(client, project_id)
+                status = str(existing.get("status") or "unknown")
+                report.check("pipeline.completed", status == "completed", f"project {status}")
             else:
                 brand, _ = ensure_brand(client, {**EVAL_BRAND, "name": args.brand})
                 project = create_demo_project(client, brand["id"])
